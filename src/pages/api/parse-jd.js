@@ -5,7 +5,6 @@ export const config = {
   api: {
     bodyParser: false,
   },
-  runtime: "nodejs20.x",
 };
 
 const parseForm = (req) =>

@@ -5,7 +5,22 @@ const SUPPORTED_TYPES = [".pdf", ".docx", ".txt"];
 
 export const getSupportedResumeTypes = () => [...SUPPORTED_TYPES];
 
+const ensureDomMatrix = async () => {
+  if (typeof globalThis.DOMMatrix === "undefined") {
+    try {
+      const canvasMod = await import("@napi-rs/canvas");
+      if (canvasMod?.DOMMatrix) {
+        globalThis.DOMMatrix = canvasMod.DOMMatrix;
+      }
+    } catch (error) {
+      console.warn("Failed to polyfill DOMMatrix:", error);
+    }
+  }
+};
+
 const resolvePdfParser = async () => {
+  await ensureDomMatrix();
+
   const mod = await import("pdf-parse");
   if (typeof mod === "function") return mod;
   if (typeof mod.default === "function") return mod.default;
