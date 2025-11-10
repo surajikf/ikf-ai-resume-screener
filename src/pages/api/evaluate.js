@@ -6,6 +6,7 @@ export const config = {
   api: {
     bodyParser: false,
   },
+  runtime: "nodejs20.x",
 };
 
 const SYSTEM_PROMPT = `
