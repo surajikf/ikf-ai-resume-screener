@@ -20,6 +20,9 @@ const ensureDomMatrix = async () => {
 
 const resolvePdfParser = async () => {
   await ensureDomMatrix();
+  if (typeof process !== "undefined") {
+    process.env.PDFJS_WORKER = "legacy/build/pdf.worker.mjs";
+  }
 
   const mod = await import("pdf-parse");
   if (typeof mod === "function") return mod;
