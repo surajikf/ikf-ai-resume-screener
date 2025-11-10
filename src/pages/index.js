@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import UploadPanel from "@/components/UploadPanel";
 import JiraBoard from "@/components/JiraBoard";
 import EvaluationModal from "@/components/EvaluationModal";
+import StatusSummary from "@/components/StatusSummary";
 import {
   saveJD,
   getJDs,
@@ -159,6 +160,20 @@ export default function Home() {
   };
 
   const boardEvaluations = useMemo(() => evaluations, [evaluations]);
+  const verdictCounts = useMemo(() => {
+    return evaluations.reduce(
+      (acc, evaluation) => {
+        const verdictKey = evaluation.verdict || "Not Suitable";
+        acc[verdictKey] = (acc[verdictKey] || 0) + 1;
+        return acc;
+      },
+      { Recommended: 0, "Partially Suitable": 0, "Not Suitable": 0 },
+    );
+  }, [evaluations]);
+  const latestEvaluationTime = useMemo(
+    () => evaluations[0]?.createdAt || null,
+    [evaluations],
+  );
 
   return (
     <>
@@ -168,19 +183,37 @@ export default function Home() {
       <main className={`relative min-h-screen bg-slate-100 ${inter.className}`}>
         <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto h-[520px] max-w-5xl bg-gradient-to-br from-blue-100 via-transparent to-purple-100 opacity-70 blur-3xl" />
 
-        <header className="mx-auto mb-10 mt-12 max-w-5xl px-4 text-center sm:mt-16">
-          <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">
-            IKF Recruitment Ops
-          </span>
-          <h1 className="mt-5 text-3xl font-bold text-slate-900 sm:text-4xl">
-            IKF AI Resume Screener
-          </h1>
-          <p className="mt-3 text-base text-slate-600 sm:text-lg">
-            Upload resumes, reuse job descriptions, and let GPT-4o file each candidate into the right lane with structured summaries and ready-to-send HR emails.
-          </p>
+        <header className="mx-auto mb-10 mt-12 flex w-full max-w-5xl flex-col gap-6 px-4 sm:mt-16">
+          <nav className="flex items-center justify-between rounded-full border border-white/60 bg-white/70 px-4 py-2 text-xs text-slate-500 shadow-sm backdrop-blur">
+            <span className="font-semibold tracking-[0.2em] text-blue-700">
+              IKF • AI Hiring Desk
+            </span>
+            <span className="hidden gap-4 font-medium text-slate-500 sm:flex">
+              <a href="#workspace" className="hover:text-blue-600">
+                Workspace
+              </a>
+              <a href="#board" className="hover:text-blue-600">
+                Kanban
+              </a>
+              <a href="#activity" className="hover:text-blue-600">
+                Activity
+              </a>
+            </span>
+          </nav>
+          <div className="flex flex-col gap-3 text-center">
+            <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+              IKF AI Resume Screener
+            </h1>
+            <p className="mx-auto max-w-2xl text-base text-slate-600 sm:text-lg">
+              Upload resumes, reuse job descriptions, and let GPT-4o file each candidate into the right lane with structured summaries and ready-to-send HR emails.
+            </p>
+          </div>
         </header>
 
-        <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 pb-16">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 pb-16">
+          <div id="activity" className="flex flex-col gap-4">
+            <StatusSummary counts={verdictCounts} lastEvaluated={latestEvaluationTime} />
+          </div>
           <UploadPanel
             jobDescription={jobDescription}
             onJobDescriptionChange={setJobDescription}
@@ -195,7 +228,7 @@ export default function Home() {
             loading={loading}
           />
 
-          <section className="flex flex-col gap-4">
+          <section id="board" className="flex flex-col gap-4">
             {globalError && (
               <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
                 {globalError}
