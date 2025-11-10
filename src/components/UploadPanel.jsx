@@ -1,5 +1,11 @@
-import { useState, useRef } from "react";
-import { FaUpload, FaTrashAlt, FaPlay } from "react-icons/fa";
+import { useMemo, useState, useRef } from "react";
+import {
+  FaUpload,
+  FaTrashAlt,
+  FaPlay,
+  FaInfoCircle,
+  FaCheckCircle,
+} from "react-icons/fa";
 import JDInputArea from "@/components/JDInputArea";
 import JDHistoryPanel from "@/components/JDHistoryPanel";
 
@@ -101,9 +107,41 @@ const UploadPanel = ({
     setResumeFiles([]);
   };
 
+  const handleClearFiles = () => {
+    setResumeFiles([]);
+    setStatus("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const stepData = useMemo(
+    () => [
+      {
+        id: 1,
+        title: "Upload resumes",
+        description: "Add one or many candidate files in PDF, DOCX or TXT formats.",
+        done: resumeFiles.length > 0,
+      },
+      {
+        id: 2,
+        title: "Shape the job description",
+        description: "Paste or upload the JD and keep reusable versions handy.",
+        done: !!jobDescription.trim(),
+      },
+      {
+        id: 3,
+        title: "Launch AI evaluation",
+        description: "We’ll triage each resume, summarise findings, and draft HR emails.",
+        done: false,
+      },
+    ],
+    [resumeFiles.length, jobDescription],
+  );
+
   return (
     <section className="w-full rounded-2xl bg-white shadow-xl ring-1 ring-slate-100">
-      <div className="flex flex-col gap-2 border-b border-slate-200 px-6 py-5">
+      <div className="flex flex-col gap-2 border-b border-slate-200 px-6 py-6">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
           Evaluation Workspace
         </span>
@@ -113,6 +151,33 @@ const UploadPanel = ({
         <p className="text-sm text-slate-500">
           Bring the latest resumes and the precise job description together before running the AI evaluation.
         </p>
+      </div>
+
+      <div className="flex flex-col gap-4 border-b border-dashed border-slate-200 px-6 py-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+          How it works
+        </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {stepData.map((step) => (
+            <div
+              key={step.id}
+              className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-4"
+            >
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 font-semibold text-blue-700">
+                  {step.id}
+                </span>
+                {step.done ? (
+                  <FaCheckCircle className="text-emerald-500" aria-hidden />
+                ) : (
+                  <FaInfoCircle className="text-blue-500" aria-hidden />
+                )}
+                <span>{step.title}</span>
+              </div>
+              <p className="text-xs text-slate-500">{step.description}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
@@ -147,32 +212,49 @@ const UploadPanel = ({
 
             <div className="mt-4 space-y-2">
               {resumeFiles.length === 0 ? (
-                <p className="rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-500">
-                  No resumes added yet. Add one or more candidate files to begin.
-                </p>
+                <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-500">
+                  <p>No resumes added yet.</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Tip: add multiple files at once to let the AI process them in one run.
+                  </p>
+                </div>
               ) : (
-                resumeFiles.map((file) => (
-                  <div
-                    key={`${file.name}-${file.size}`}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-slate-800">{file.name}</p>
-                      <p className="text-xs text-slate-500">
-                        {formatFileSize(file.size)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(file)}
-                      className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-500 transition hover:border-red-200 hover:text-red-600"
+                <div className="space-y-2">
+                  {resumeFiles.map((file) => (
+                    <div
+                      key={`${file.name}-${file.size}`}
+                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
                     >
-                      <FaTrashAlt />
-                      Remove
-                    </button>
-                  </div>
-                ))
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-800">{file.name}</p>
+                        <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(file)}
+                        className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-500 transition hover:border-red-200 hover:text-red-600"
+                      >
+                        <FaTrashAlt />
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={handleClearFiles}
+                    className="text-xs font-medium text-blue-600 underline-offset-4 transition hover:text-blue-700 hover:underline"
+                  >
+                    Clear all files
+                  </button>
+                </div>
               )}
+            </div>
+
+            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-3 text-xs text-blue-700">
+              <p className="font-semibold uppercase tracking-wide">Heads up</p>
+              <p className="mt-1">
+                Resumes remain on your machine and are only streamed to OpenAI for the chosen evaluation. Nothing is stored by IKF after the call completes.
+              </p>
             </div>
           </div>
 
@@ -205,11 +287,14 @@ const UploadPanel = ({
                 type="button"
                 onClick={handleRunEvaluation}
                 disabled={loading}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
               >
                 <FaPlay />
                 {loading ? "Evaluating..." : `Run Evaluation${resumeFiles.length > 1 ? "s" : ""}`}
               </button>
+              <p className="text-xs text-slate-400">
+                Average turnaround: 5-7 seconds per resume. We’ll notify you if an evaluation needs your attention.
+              </p>
             </div>
           </div>
         </div>

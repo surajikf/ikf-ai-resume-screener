@@ -1,8 +1,9 @@
-import { FaTimes, FaRegEnvelope, FaUserTie } from "react-icons/fa";
+import { useState } from "react";
+import { FaTimes, FaRegEnvelope, FaUserTie, FaCopy } from "react-icons/fa";
 
 const EvaluationModal = ({ candidate, onClose }) => {
+  const [copied, setCopied] = useState(false);
   if (!candidate) return null;
-
   const {
     candidateName,
     roleApplied,
@@ -15,6 +16,26 @@ const EvaluationModal = ({ candidate, onClose }) => {
     jobTitle,
     createdAt,
   } = candidate;
+
+  const verdictColor =
+    verdict === "Recommended"
+      ? "bg-green-100 text-green-700"
+      : verdict === "Partially Suitable"
+        ? "bg-orange-100 text-orange-700"
+        : "bg-red-100 text-red-700";
+
+  const handleCopyEmail = async () => {
+    if (!emailDraft?.body) return;
+    try {
+      await navigator.clipboard.writeText(
+        `Subject: ${emailDraft.subject || ""}\n\n${emailDraft.body || ""}`,
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy email", error);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/60 px-4 py-8">
@@ -32,6 +53,9 @@ const EvaluationModal = ({ candidate, onClose }) => {
               </p>
             </div>
           </div>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${verdictColor}`}>
+            {verdict}
+          </span>
           <button
             type="button"
             onClick={onClose}
@@ -48,7 +72,7 @@ const EvaluationModal = ({ candidate, onClose }) => {
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Verdict
               </span>
-              <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
+              <span className={`rounded-full px-3 py-1 text-sm font-semibold ${verdictColor}`}>
                 {verdict}
               </span>
             </div>
@@ -129,9 +153,26 @@ const EvaluationModal = ({ candidate, onClose }) => {
                   {emailDraft.body || "No email content provided."}
                 </pre>
               </div>
+              <button
+                type="button"
+                onClick={handleCopyEmail}
+                className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+              >
+                <FaCopy />
+                {copied ? "Copied!" : "Copy email to clipboard"}
+              </button>
             </section>
           )}
         </div>
+        <footer className="border-t border-slate-200 bg-slate-50 px-6 py-4 text-right">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-blue-700"
+          >
+            Close
+          </button>
+        </footer>
       </div>
     </div>
   );
