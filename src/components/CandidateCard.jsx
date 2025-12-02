@@ -124,7 +124,7 @@ const CandidateCard = ({ candidate, onSelect }) => {
         className="mt-1 flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
       >
         <FaEnvelopeOpenText />
-        View Details
+        View &amp; Send Email
       </button>
     </article>
   );

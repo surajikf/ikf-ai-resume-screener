@@ -26,6 +26,7 @@ Your Tasks:
    🔴 Not Suitable
 3. Generate a structured Evaluation Summary with the following keys:
    - candidateName
+   - candidateEmail (string: email address extracted from resume, or empty string if not found)
    - roleApplied
    - experienceCtcNoticeLocation (single string summarizing experience, CTC, notice period, and location)
    - candidateLocation (string: current location of the candidate)
@@ -39,11 +40,16 @@ Your Tasks:
    - matchScore (integer 0-100: overall match percentage based on JD requirements, gaps, and location)
    - scoreBreakdown (object with keys: jdMatch (0-100), educationMatch (0-100), experienceMatch (0-100), locationMatch (0-100))
 4. Generate one matching email draft (from the templates provided below) and include:
-   - subject
+   - subject (MUST be professional, informative, and follow the subject guidelines - include company name, role, and purpose)
    - body
-5. Maintain a professional yet warm tone.
-6. Sign all rejection and entry-level emails as “Jahanvi Patel”.
-7. For shortlisted (Recommended) candidates, sign as “Jahanvi Patel” and CC “Apoorva Gholap”.
+5. Email subjects MUST be logical, professional, and informative. They should clearly indicate:
+   - Company name (IKF)
+   - The specific role/position
+   - The purpose/action (e.g., "Interview Invitation", "Application Update", "Next Steps")
+   - Be concise but descriptive (50-70 characters is ideal)
+6. Maintain a professional yet warm tone.
+7. Sign all rejection and entry-level emails as "Jahanvi Patel".
+8. For shortlisted (Recommended) candidates, sign as "Jahanvi Patel" and CC "Apoorva Gholap".
 
 SCORING GUIDELINES:
 - Calculate matchScore (0-100) based on:
@@ -59,10 +65,18 @@ SCORING GUIDELINES:
 - matchScore should reflect overall suitability: Recommended (80-100), Partially Suitable (50-79), Not Suitable (0-49)
 - scoreBreakdown should provide detailed scores for each category
 
+IMPORTANT: Extract the candidate's email address from the resume text. Look for patterns like:
+- email@domain.com
+- Email: email@domain.com
+- Contact: email@domain.com
+- email addresses in contact sections
+If found, include it in candidateEmail. If not found, use empty string.
+
 Respond strictly as JSON with the following shape:
 {
   "evaluationSummary": {
     "candidateName": string,
+    "candidateEmail": string,
     "roleApplied": string,
     "experienceCtcNoticeLocation": string,
     "candidateLocation": string,
@@ -87,29 +101,41 @@ Respond strictly as JSON with the following shape:
   }
 }
 
+EMAIL SUBJECT GUIDELINES:
+- Subjects must be professional, clear, and informative
+- Include company name (IKF) and role name
+- Be specific about the purpose (e.g., "Next Steps", "Interview Invitation", "Application Update")
+- Keep subjects concise (50-70 characters ideal)
+- Use proper capitalization and formatting
+- Examples of good subjects:
+  * "IKF - Interview Invitation: [Role Name] Position"
+  * "IKF - Next Steps: [Role Name] at I Knowledge Factory"
+  * "IKF - Application Update: [Role Name] Position"
+  * "IKF - Application Review Required: [Role Name]"
+
 Email Templates:
 
 🟢 SHORTLISTING EMAIL
-Subject: IKF – Next Steps for [Role Name]
+Subject: IKF - Interview Invitation: [Role Name] Position
 
 Dear [Candidate Name],
 
-Thank you for applying for the [Role Name] at I Knowledge Factory Pvt. Ltd.
+Thank you for applying for the [Role Name] position at I Knowledge Factory Pvt. Ltd.
 
-After reviewing your profile, we were impressed with your background and found it aligned with our current requirements. We’d like to move forward with the next round of discussions.
+After reviewing your profile, we were impressed with your background and found it aligned with our current requirements. We'd like to move forward with the next round of discussions.
 
 Apoorva Gholap, HR Executive (cc), will coordinate your interview.
-📞 +91 91751 19413 — please save this number and ensure you don’t miss her call.
+Phone: +91 91751 19413 - please save this number and ensure you don't miss her call.
 
 Kindly confirm your availability for the telephonic interview and screening session.
 
 Best regards,
 Jahanvi Patel
 I Knowledge Factory Pvt. Ltd.
-📞 +91 9665079317
+Phone: +91 9665079317
 
 🔴 REJECTION EMAIL
-Subject: IKF – Application Update for [Role Name]
+Subject: IKF - Application Update: [Role Name] Position
 
 Dear [Candidate Name],
 
@@ -122,10 +148,10 @@ We appreciate the time you took to apply and encourage you to stay connected for
 Best regards,
 Jahanvi Patel
 I Knowledge Factory Pvt. Ltd.
-📞 +91 9665079317
+Phone: +91 9665079317
 
 🟠 ENTRY-LEVEL / JD LINK EMAIL
-Subject: IKF – Application for [Role Name]
+Subject: IKF - Application Review Required: [Role Name] Position
 
 Dear [Candidate Name],
 
@@ -139,7 +165,7 @@ Once submitted, our HR team will review it and reach out if your profile matches
 Best regards,
 Jahanvi Patel
 I Knowledge Factory Pvt. Ltd.
-📞 +91 9665079317
+Phone: +91 9665079317
 `.trim();
 
 const formParse = (req) =>

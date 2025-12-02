@@ -162,6 +162,7 @@ export default function Home() {
       const evaluation = {
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         candidateName,
+        candidateEmail: summary.candidateEmail || "",
         roleApplied,
         experience: summary.experienceCtcNoticeLocation || "",
         candidateLocation: summary.candidateLocation || "",
@@ -324,6 +325,7 @@ export default function Home() {
             candidate={selectedEvaluation}
             onClose={() => setSelectedEvaluation(null)}
             emailSignature={settings?.emailSignature}
+            canSendEmail={!!settings?.emailSendingEnabled}
           />
         )}
       </main>

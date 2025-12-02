@@ -34,7 +34,15 @@ export const saveCandidateEvaluation = (candidateName, roleApplied, evaluationId
 
 export const getCandidateHistory = () => {
   if (typeof window === "undefined") return [];
-  return JSON.parse(localStorage.getItem("candidateHistory")) || [];
+  try {
+    const raw = localStorage.getItem("candidateHistory");
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    console.error("Error reading candidate history:", error);
+    // Clear corrupted data
+    localStorage.removeItem("candidateHistory");
+    return [];
+  }
 };
 
 export const findPreviousEvaluation = (candidateName) => {

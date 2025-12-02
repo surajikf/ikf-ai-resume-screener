@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { FaTimes, FaRegEnvelope, FaCopy, FaChartLine, FaMapMarkerAlt } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { FaTimes, FaRegEnvelope, FaCopy, FaChartLine, FaMapMarkerAlt, FaPaperPlane } from "react-icons/fa";
+import { getSettings } from "@/utils/settingsStorage";
 
 const buildEmailBodyWithSignature = (body, signature) => {
   const baseBody = body || "";
@@ -21,11 +22,14 @@ const buildEmailBodyWithSignature = (body, signature) => {
   return `${trimmedBody}\n\n${signature.trim()}`;
 };
 
-const EvaluationModal = ({ candidate, onClose, emailSignature }) => {
+const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) => {
   const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState("");
   if (!candidate) return null;
   const {
     candidateName,
+    candidateEmail = "",
     roleApplied,
     experience,
     candidateLocation,
@@ -42,6 +46,16 @@ const EvaluationModal = ({ candidate, onClose, emailSignature }) => {
     jobTitle,
     createdAt,
   } = candidate;
+
+  // Initialize toEmail with candidate's email from resume, but keep it editable
+  const [toEmail, setToEmail] = useState(candidateEmail || "");
+
+  // Update email when candidate changes
+  useEffect(() => {
+    if (candidateEmail) {
+      setToEmail(candidateEmail);
+    }
+  }, [candidateEmail]);
 
   const verdictColor =
     verdict === "Recommended"
@@ -62,20 +76,78 @@ const EvaluationModal = ({ candidate, onClose, emailSignature }) => {
     return "bg-red-50 border-red-200";
   };
 
-  const fullEmailBody = emailDraft
+  const initialSubject = emailDraft?.subject || "";
+  const initialBody = emailDraft
     ? buildEmailBodyWithSignature(emailDraft.body || "", emailSignature)
     : "";
 
+  const [subject, setSubject] = useState(initialSubject);
+  const [body, setBody] = useState(initialBody);
+
   const handleCopyEmail = async () => {
-    if (!emailDraft?.subject && !fullEmailBody) return;
+    if (!subject && !body) return;
     try {
       await navigator.clipboard.writeText(
-        `Subject: ${emailDraft?.subject || ""}\n\n${fullEmailBody || ""}`,
+        `Subject: ${subject || ""}\n\n${body || ""}`,
       );
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error("Failed to copy email", error);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!canSendEmail) {
+      setSendStatus("Please enable email sending in Settings and configure Gmail API credentials.");
+      setTimeout(() => setSendStatus(""), 5000);
+      return;
+    }
+
+    if (!toEmail || !subject || !body) {
+      setSendStatus("Please fill in all fields (To, Subject, Body)");
+      setTimeout(() => setSendStatus(""), 3000);
+      return;
+    }
+
+    setSending(true);
+    setSendStatus("");
+
+    try {
+      const settings = getSettings();
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: toEmail,
+          subject,
+          body,
+          emailSendingEnabled: settings.emailSendingEnabled,
+          googleClientId: settings.googleClientId,
+          googleClientSecret: settings.googleClientSecret,
+          googleRefreshToken: settings.googleRefreshToken,
+          googleSenderEmail: settings.googleSenderEmail,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send email");
+      }
+
+      setSendStatus(`Email sent successfully to ${toEmail}`);
+      setTimeout(() => {
+        setSendStatus("");
+        setToEmail("");
+      }, 3000);
+    } catch (error) {
+      setSendStatus(error.message || "Failed to send email");
+      setTimeout(() => setSendStatus(""), 5000);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -272,23 +344,77 @@ const EvaluationModal = ({ candidate, onClose, emailSignature }) => {
                   <FaRegEnvelope />
                   <h4 className="text-sm font-semibold">Email Draft</h4>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCopyEmail}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-white px-2.5 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
-                >
-                  <FaCopy />
-                  {copied ? "Copied" : "Copy"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSendEmail}
+                    disabled={sending}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                  >
+                    <FaPaperPlane />
+                    {sending ? "Sending..." : "Send Email"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyEmail}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-white px-2.5 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                  >
+                    <FaCopy />
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
               </div>
               <div className="rounded-md bg-white p-4 text-sm text-slate-700">
-                <p className="font-semibold text-slate-900 mb-2">
-                  {emailDraft.subject || "No subject"}
-                </p>
+                <div className="flex flex-col gap-2 mb-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-slate-600">
+                      To
+                    </label>
+                    <input
+                      type="email"
+                      value={toEmail}
+                      onChange={(e) => setToEmail(e.target.value)}
+                      placeholder="candidate@example.com"
+                      className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-slate-600">
+                      Subject
+                    </label>
+                    <input
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                    />
+                  </div>
+                </div>
                 <pre className="whitespace-pre-wrap font-sans text-slate-600">
-                  {fullEmailBody || "No email content provided."}
+                  <textarea
+                    rows={10}
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    className="w-full resize-none border-0 p-0 text-sm text-slate-700 outline-none focus:ring-0"
+                  />
                 </pre>
               </div>
+              {sendStatus && (
+                <div className={`mt-2 rounded-md px-3 py-2 text-xs ${
+                  sendStatus.includes("successfully") 
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : sendStatus.includes("Settings") || sendStatus.includes("Failed")
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : "bg-blue-50 text-blue-700 border border-blue-200"
+                }`}>
+                  {sendStatus}
+                  {sendStatus.includes("Settings") && (
+                    <a href="/settings" className="ml-2 underline font-semibold">
+                      Go to Settings
+                    </a>
+                  )}
+                </div>
+              )}
             </section>
           )}
         </div>

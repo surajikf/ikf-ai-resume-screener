@@ -5,6 +5,11 @@ const DEFAULT_SETTINGS = {
     "I Knowledge Factory Pvt. Ltd.",
     "📞 +91 9665079317",
   ].join("\n"),
+  emailSendingEnabled: false,
+  googleClientId: "",
+  googleClientSecret: "",
+  googleRefreshToken: "",
+  googleSenderEmail: "",
 };
 
 export const getSettings = () => {
@@ -34,5 +39,4 @@ export const saveSettings = (partialSettings) => {
 
   localStorage.setItem("ikfSettings", JSON.stringify(next));
 };
-
 
