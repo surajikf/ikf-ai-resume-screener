@@ -27,7 +27,34 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) =
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
+  
+  // Initialize toEmail with candidate's email from resume, but keep it editable
+  const [toEmail, setToEmail] = useState(candidate?.candidateEmail || "");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+
+  // Update email when candidate changes
+  useEffect(() => {
+    if (candidate?.candidateEmail) {
+      setToEmail(candidate.candidateEmail);
+    }
+  }, [candidate?.candidateEmail]);
+
+  // Initialize subject and body when candidate/emailDraft changes
+  useEffect(() => {
+    if (candidate?.emailDraft) {
+      setSubject(candidate.emailDraft.subject || "");
+      setBody(
+        buildEmailBodyWithSignature(
+          candidate.emailDraft.body || "",
+          emailSignature || ""
+        )
+      );
+    }
+  }, [candidate?.emailDraft, emailSignature]);
+
   if (!candidate) return null;
+  
   const {
     candidateName,
     candidateEmail = "",
@@ -48,16 +75,6 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) =
     createdAt,
   } = candidate;
 
-  // Initialize toEmail with candidate's email from resume, but keep it editable
-  const [toEmail, setToEmail] = useState(candidateEmail || "");
-
-  // Update email when candidate changes
-  useEffect(() => {
-    if (candidateEmail) {
-      setToEmail(candidateEmail);
-    }
-  }, [candidateEmail]);
-
   const verdictColor =
     verdict === "Recommended"
       ? "bg-green-100 text-green-700"
@@ -76,14 +93,6 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) =
     if (score >= 50) return "bg-orange-50 border-orange-200";
     return "bg-red-50 border-red-200";
   };
-
-  const initialSubject = emailDraft?.subject || "";
-  const initialBody = emailDraft
-    ? buildEmailBodyWithSignature(emailDraft.body || "", emailSignature)
-    : "";
-
-  const [subject, setSubject] = useState(initialSubject);
-  const [body, setBody] = useState(initialBody);
 
   const handleCopyEmail = async () => {
     if (!subject && !body) return;

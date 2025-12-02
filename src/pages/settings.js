@@ -172,7 +172,7 @@ export default function SettingsPage() {
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
                 <p className="mt-1 text-xs text-slate-500">
-                  This email address will be used as the "From" address when sending emails.
+                  This email address will be used as the &quot;From&quot; address when sending emails.
                 </p>
               </div>
             </div>
@@ -182,7 +182,7 @@ export default function SettingsPage() {
                 Security Note
               </p>
               <p className="text-xs text-amber-800">
-                These credentials are stored in your browser's local storage. For production use,
+                These credentials are stored in your browser&apos;s local storage. For production use,
                 consider storing sensitive credentials server-side or using environment variables.
               </p>
             </div>
