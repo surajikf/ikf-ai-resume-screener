@@ -21,31 +21,20 @@ const summaryConfig = [
 
 const StatusSummary = ({ counts, lastEvaluated }) => {
   return (
-    <section className="grid gap-4 md:grid-cols-[1fr_1fr_1fr]">
+    <section className="grid gap-3 md:grid-cols-3">
       {summaryConfig.map((item) => (
         <article
           key={item.key}
-          className={`flex flex-col gap-2 rounded-2xl border bg-gradient-to-br ${item.accent} px-5 py-5 shadow-sm`}
+          className={`flex items-center justify-between rounded-lg border bg-gradient-to-br ${item.accent} px-5 py-4`}
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-            {item.title}
-          </p>
-          <p className="text-3xl font-semibold">
-            {counts[item.key] ?? 0}
-          </p>
-          <p className="text-xs text-slate-600">{item.description}</p>
+          <div>
+            <p className="text-xs font-medium text-slate-600 mb-1">{item.title}</p>
+            <p className="text-2xl font-bold">
+              {counts[item.key] ?? 0}
+            </p>
+          </div>
         </article>
       ))}
-      <article className="md:col-span-3 flex items-start justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm">
-        <div>
-          <p className="font-semibold text-slate-900">Evaluation activity</p>
-          <p className="text-xs text-slate-500">
-            {lastEvaluated
-              ? `Latest summary generated at ${new Date(lastEvaluated).toLocaleString()}`
-              : "Run your first evaluation to populate the kanban board."}
-          </p>
-        </div>
-      </article>
     </section>
   );
 };

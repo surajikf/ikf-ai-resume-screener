@@ -180,40 +180,24 @@ export default function Home() {
       <Head>
         <title>IKF AI Resume Screener</title>
       </Head>
-      <main className={`relative min-h-screen bg-slate-100 ${inter.className}`}>
-        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto h-[520px] max-w-5xl bg-gradient-to-br from-blue-100 via-transparent to-purple-100 opacity-70 blur-3xl" />
+      <main className={`relative min-h-screen bg-slate-50 ${inter.className}`}>
 
-        <header className="mx-auto mb-10 mt-12 flex w-full max-w-5xl flex-col gap-6 px-4 sm:mt-16">
-          <nav className="flex items-center justify-between rounded-full border border-white/60 bg-white/70 px-4 py-2 text-xs text-slate-500 shadow-sm backdrop-blur">
-            <span className="font-semibold tracking-[0.2em] text-blue-700">
-              IKF • AI Hiring Desk
-            </span>
-            <span className="hidden gap-4 font-medium text-slate-500 sm:flex">
-              <a href="#workspace" className="hover:text-blue-600">
-                Workspace
-              </a>
-              <a href="#board" className="hover:text-blue-600">
-                Kanban
-              </a>
-              <a href="#activity" className="hover:text-blue-600">
-                Activity
-              </a>
-            </span>
-          </nav>
-          <div className="flex flex-col gap-3 text-center">
-            <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
-              IKF AI Resume Screener
+        <header className="mx-auto mb-8 mt-8 flex w-full max-w-6xl flex-col gap-4 px-4 sm:mt-12">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+              Resume Screener
             </h1>
-            <p className="mx-auto max-w-2xl text-base text-slate-600 sm:text-lg">
-              Upload resumes, reuse job descriptions, and let GPT-4o file each candidate into the right lane with structured summaries and ready-to-send HR emails.
-            </p>
+            <span className="text-xs font-medium text-slate-500">
+              {evaluations.length} candidate{evaluations.length !== 1 ? 's' : ''}
+            </span>
           </div>
         </header>
 
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 pb-16">
-          <div id="activity" className="flex flex-col gap-4">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-16">
+          {evaluations.length > 0 && (
             <StatusSummary counts={verdictCounts} lastEvaluated={latestEvaluationTime} />
-          </div>
+          )}
+          
           <UploadPanel
             jobDescription={jobDescription}
             onJobDescriptionChange={setJobDescription}
@@ -228,20 +212,18 @@ export default function Home() {
             loading={loading}
           />
 
-          <section id="board" className="flex flex-col gap-4">
-            {globalError && (
-              <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                {globalError}
-              </p>
-            )}
-            <p className="text-sm text-slate-500">
-              Once the AI completes an evaluation, the candidate appears below grouped by verdict. Select any card to open the detailed summary and the personalised email draft.
-            </p>
+          {globalError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {globalError}
+            </div>
+          )}
+
+          {evaluations.length > 0 && (
             <JiraBoard
               evaluations={boardEvaluations}
               onSelectCandidate={setSelectedEvaluation}
             />
-          </section>
+          )}
         </div>
         {selectedEvaluation && (
           <EvaluationModal

@@ -77,10 +77,10 @@ const CandidateCard = ({ candidate, onSelect }) => {
       <button
         type="button"
         onClick={() => onSelect(candidate)}
-        className="mt-1 flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+        className="mt-1 flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
       >
         <FaEnvelopeOpenText />
-        View Full Evaluation
+        View Details
       </button>
     </article>
   );
