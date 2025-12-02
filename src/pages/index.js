@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import Head from "next/head";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import UploadPanel from "@/components/UploadPanel";
 import JiraBoard from "@/components/JiraBoard";
@@ -244,7 +245,7 @@ export default function Home() {
                 {evaluations.length > 0 && (
                   <StatusSummary counts={verdictCounts} lastEvaluated={latestEvaluationTime} />
                 )}
-                <a
+                <Link
                   href="/settings"
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-400"
                 >
@@ -253,7 +254,7 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   Settings
-                </a>
+                </Link>
               </div>
             </div>
           </header>

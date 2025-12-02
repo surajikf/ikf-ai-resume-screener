@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { FaTimes, FaRegEnvelope, FaCopy, FaChartLine, FaMapMarkerAlt, FaPaperPlane } from "react-icons/fa";
 import { getSettings } from "@/utils/settingsStorage";
 
@@ -409,9 +410,9 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) =
                 }`}>
                   {sendStatus}
                   {sendStatus.includes("Settings") && (
-                    <a href="/settings" className="ml-2 underline font-semibold">
+                    <Link href="/settings" className="ml-2 underline font-semibold">
                       Go to Settings
-                    </a>
+                    </Link>
                   )}
                 </div>
               )}

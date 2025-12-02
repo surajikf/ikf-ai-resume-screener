@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Head from "next/head";
+import Link from "next/link";
 import { Inter } from "next/font/google";
 import { getSettings, saveSettings } from "@/utils/settingsStorage";
 
@@ -55,12 +56,12 @@ export default function SettingsPage() {
                 Control how email drafts are finalised before sending.
               </p>
             </div>
-            <a
+            <Link
               href="/"
               className="text-sm font-medium text-blue-600 hover:text-blue-700"
             >
               ← Back to Screener
-            </a>
+            </Link>
           </header>
 
           <section className="rounded-2xl bg-white shadow-lg border border-slate-200 p-6 space-y-4">
