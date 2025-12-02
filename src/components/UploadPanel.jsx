@@ -113,127 +113,129 @@ const UploadPanel = ({
     }
   };
 
+  const canEvaluate = resumeFiles.length > 0 && jobDescription.trim() && !loading;
+
   return (
-    <section className="w-full rounded-xl bg-white shadow-sm border border-slate-200">
-      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Upload & Evaluate
-        </h2>
-      </div>
+    <div className="space-y-6">
+      {/* Step 1: Upload Resumes */}
+      <div className="rounded-2xl bg-white shadow-lg border border-slate-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-slate-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold">
+                1
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Upload Resumes</h2>
+                <p className="text-xs text-slate-600">Select one or multiple resume files</p>
+              </div>
+            </div>
+            {resumeFiles.length > 0 && (
+              <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
+                {resumeFiles.length} file{resumeFiles.length > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <label
+            htmlFor="resume-upload"
+            className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed transition-all ${
+              resumeFiles.length > 0
+                ? 'border-blue-300 bg-blue-50'
+                : 'border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50'
+            } px-6 py-12`}
+          >
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+              <FaUpload className="text-2xl text-blue-600" />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-semibold text-slate-900">
+                {resumeFiles.length > 0
+                  ? `${resumeFiles.length} file${resumeFiles.length > 1 ? 's' : ''} selected`
+                  : 'Click to upload or drag and drop'}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                PDF, DOCX, or TXT files
+              </p>
+            </div>
+            <input
+              id="resume-upload"
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,.txt"
+              multiple
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </label>
 
-      <div className="grid gap-6 px-6 py-6 lg:grid-cols-2">
-        <div className="flex flex-col gap-4">
-          <div className="rounded-lg border border-slate-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">Resumes</h3>
-            <label
-              htmlFor="resume-upload"
-              className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm font-medium text-slate-600 transition hover:border-blue-500 hover:bg-blue-50"
-            >
-              <FaUpload className="text-blue-600" />
-              {resumeFiles.length > 0
-                ? `${resumeFiles.length} file${resumeFiles.length > 1 ? "s" : ""} selected`
-                : "Upload resumes (PDF, DOCX, TXT)"}
-              <input
-                id="resume-upload"
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.docx,.txt"
-                multiple
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </label>
-
-            <div className="mt-4 space-y-2">
-              {resumeFiles.length > 0 && (
-                <div className="space-y-2">
-                  {resumeFiles.map((file) => (
-                    <div
-                      key={`${file.name}-${file.size}`}
-                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-slate-800">{file.name}</p>
-                        <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFile(file)}
-                        className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-500 transition hover:border-red-200 hover:text-red-600"
-                      >
-                        <FaTrashAlt />
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+          {resumeFiles.length > 0 && (
+            <div className="mt-6 space-y-2">
+              {resumeFiles.map((file) => (
+                <div
+                  key={`${file.name}-${file.size}`}
+                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-slate-900">{file.name}</p>
+                    <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                  </div>
                   <button
                     type="button"
-                    onClick={handleClearFiles}
-                    className="text-xs font-medium text-slate-500 hover:text-red-600"
+                    onClick={() => handleRemoveFile(file)}
+                    className="ml-4 flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600"
                   >
-                    Clear all
+                    <FaTrashAlt />
+                    Remove
                   </button>
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-slate-200 bg-white p-5">
-            <div className="flex flex-col gap-4">
-              {jobTitle && (
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Job Title</p>
-                  <p className="text-sm font-semibold text-slate-900">{jobTitle}</p>
-                </div>
-              )}
-
-              {error && (
-                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                  {error}
-                </p>
-              )}
-              {!error && status && (
-                <p className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
-                  {status}
-                </p>
-              )}
-
+              ))}
               <button
                 type="button"
-                onClick={handleRunEvaluation}
-                disabled={loading || resumeFiles.length === 0 || !jobDescription.trim()}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                onClick={handleClearFiles}
+                className="text-sm font-medium text-slate-600 hover:text-red-600 transition"
               >
-                <FaPlay />
-                {loading ? "Evaluating..." : "Evaluate"}
+                Clear all files
               </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Step 2: Job Description */}
+      <div className="rounded-2xl bg-white shadow-lg border border-slate-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-slate-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                jobDescription.trim() ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-500'
+              }`}>
+                2
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Job Description</h2>
+                <p className="text-xs text-slate-600">Paste or upload the job description</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {jdHistory.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onSaveJD}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Save JD
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="rounded-lg border border-slate-200 bg-white p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-900">Job Description</h3>
-              <button
-                type="button"
-                onClick={onSaveJD}
-                className="text-xs font-medium text-blue-600 hover:text-blue-700"
-              >
-                Save
-              </button>
-            </div>
-
-            <JDInputArea
-              value={jobDescription}
-              onChange={onJobDescriptionChange}
-              onFileUpload={onJDFileUpload}
-            />
-          </div>
-
+        <div className="p-6">
           {jdHistory.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Recent JDs</h3>
+            <div className="mb-4">
               <JDHistoryPanel
                 jdHistory={jdHistory}
                 onUseJD={onUseJD}
@@ -242,9 +244,64 @@ const UploadPanel = ({
               />
             </div>
           )}
+          
+          <JDInputArea
+            value={jobDescription}
+            onChange={onJobDescriptionChange}
+            onFileUpload={onJDFileUpload}
+          />
+          
+          {jobTitle && (
+            <div className="mt-4 rounded-lg bg-slate-50 border border-slate-200 px-4 py-2">
+              <p className="text-xs text-slate-500 mb-1">Detected Job Title</p>
+              <p className="text-sm font-semibold text-slate-900">{jobTitle}</p>
+            </div>
+          )}
         </div>
       </div>
-    </section>
+
+      {/* Step 3: Evaluate Button */}
+      <div className="sticky bottom-4 z-20">
+        <div className="rounded-2xl bg-white shadow-xl border-2 border-slate-200 p-6">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          {!error && status && (
+            <div className="mb-4 rounded-lg border border-blue-300 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+              {status}
+            </div>
+          )}
+          
+          <button
+            type="button"
+            onClick={handleRunEvaluation}
+            disabled={!canEvaluate}
+            className={`w-full flex items-center justify-center gap-3 rounded-xl px-6 py-4 text-base font-bold text-white shadow-lg transition-all ${
+              canEvaluate
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl hover:scale-[1.02]'
+                : 'bg-slate-300 cursor-not-allowed'
+            }`}
+          >
+            <FaPlay className="text-lg" />
+            {loading ? (
+              <span>Evaluating {resumeFiles.length} resume{resumeFiles.length > 1 ? 's' : ''}...</span>
+            ) : (
+              <span>Evaluate {resumeFiles.length > 0 ? `${resumeFiles.length} ` : ''}Resume{resumeFiles.length !== 1 ? 's' : ''}</span>
+            )}
+          </button>
+          
+          {!canEvaluate && (
+            <p className="mt-3 text-center text-xs text-slate-500">
+              {resumeFiles.length === 0 && !jobDescription.trim() && 'Upload resumes and add job description to continue'}
+              {resumeFiles.length === 0 && jobDescription.trim() && 'Upload at least one resume to continue'}
+              {resumeFiles.length > 0 && !jobDescription.trim() && 'Add a job description to continue'}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

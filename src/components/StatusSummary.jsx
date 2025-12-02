@@ -21,21 +21,19 @@ const summaryConfig = [
 
 const StatusSummary = ({ counts, lastEvaluated }) => {
   return (
-    <section className="grid gap-3 md:grid-cols-3">
+    <div className="flex items-center gap-3">
       {summaryConfig.map((item) => (
-        <article
+        <div
           key={item.key}
-          className={`flex items-center justify-between rounded-lg border bg-gradient-to-br ${item.accent} px-5 py-4`}
+          className={`flex items-center gap-2 rounded-lg border bg-gradient-to-br ${item.accent} px-4 py-2`}
         >
-          <div>
-            <p className="text-xs font-medium text-slate-600 mb-1">{item.title}</p>
-            <p className="text-2xl font-bold">
-              {counts[item.key] ?? 0}
-            </p>
-          </div>
-        </article>
+          <p className="text-lg font-bold">
+            {counts[item.key] ?? 0}
+          </p>
+          <p className="text-xs font-medium text-slate-700">{item.title}</p>
+        </div>
       ))}
-    </section>
+    </div>
   );
 };
 

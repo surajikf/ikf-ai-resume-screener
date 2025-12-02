@@ -28,10 +28,16 @@ Your Tasks:
    - candidateName
    - roleApplied
    - experienceCtcNoticeLocation (single string summarizing experience, CTC, notice period, and location)
+   - candidateLocation (string: current location of the candidate)
+   - companyLocation (string: company/job location from JD, or "Not specified" if not mentioned)
    - keyStrengths (array of strings)
    - gaps (array of strings)
+   - educationGaps (array of strings: specific education requirements from JD that are missing)
+   - experienceGaps (array of strings: specific experience requirements from JD that are missing)
    - verdict ("Recommended" | "Partially Suitable" | "Not Suitable")
    - betterSuitedFocus (string describing the general area the candidate fits best when verdict is "Not Suitable"; empty otherwise)
+   - matchScore (integer 0-100: overall match percentage based on JD requirements, gaps, and location)
+   - scoreBreakdown (object with keys: jdMatch (0-100), educationMatch (0-100), experienceMatch (0-100), locationMatch (0-100))
 4. Generate one matching email draft (from the templates provided below) and include:
    - subject
    - body
@@ -39,16 +45,41 @@ Your Tasks:
 6. Sign all rejection and entry-level emails as “Jahanvi Patel”.
 7. For shortlisted (Recommended) candidates, sign as “Jahanvi Patel” and CC “Apoorva Gholap”.
 
+SCORING GUIDELINES:
+- Calculate matchScore (0-100) based on:
+  1. JD Match (40%): How well candidate's skills, experience, and qualifications match JD requirements
+  2. Education Match (20%): How well candidate's education matches JD requirements (deduct points for educationGaps)
+  3. Experience Match (30%): How well candidate's work experience matches JD requirements (deduct points for experienceGaps)
+  4. Location Match (10%): 
+     - 100 if locations match or candidate is willing to relocate
+     - 75 if same city/region
+     - 50 if different city but same state/region
+     - 25 if different state but same country
+     - 0 if different country or location mismatch is a concern
+- matchScore should reflect overall suitability: Recommended (80-100), Partially Suitable (50-79), Not Suitable (0-49)
+- scoreBreakdown should provide detailed scores for each category
+
 Respond strictly as JSON with the following shape:
 {
   "evaluationSummary": {
     "candidateName": string,
     "roleApplied": string,
     "experienceCtcNoticeLocation": string,
+    "candidateLocation": string,
+    "companyLocation": string,
     "keyStrengths": string[],
     "gaps": string[],
+    "educationGaps": string[],
+    "experienceGaps": string[],
     "verdict": "Recommended" | "Partially Suitable" | "Not Suitable",
-    "betterSuitedFocus": string
+    "betterSuitedFocus": string,
+    "matchScore": number (0-100),
+    "scoreBreakdown": {
+      "jdMatch": number (0-100),
+      "educationMatch": number (0-100),
+      "experienceMatch": number (0-100),
+      "locationMatch": number (0-100)
+    }
   },
   "emailDraft": {
     "subject": string,

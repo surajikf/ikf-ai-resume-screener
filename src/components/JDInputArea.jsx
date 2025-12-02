@@ -35,18 +35,18 @@ const JDInputArea = ({ value, onChange, onFileUpload }) => {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Paste or type job description..."
-        rows={10}
-        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        placeholder="Paste or type the job description here... Include key requirements, responsibilities, and qualifications."
+        rows={12}
+        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
       />
       <div className="flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-600 hover:text-blue-600">
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700">
           <FaFileUpload />
-          {uploading ? "Uploading..." : "Upload file"}
+          {uploading ? "Uploading..." : "Upload JD File"}
           <input
             type="file"
             accept=".pdf,.docx,.txt"
@@ -55,10 +55,16 @@ const JDInputArea = ({ value, onChange, onFileUpload }) => {
             disabled={uploading}
           />
         </label>
-        <span className="text-xs text-slate-500">{wordCount} words</span>
+        <div className="flex items-center gap-4 text-xs text-slate-500">
+          <span>{wordCount} words</span>
+          <span className="h-4 w-px bg-slate-300"></span>
+          <span>{value.length} chars</span>
+        </div>
       </div>
       {statusMessage && (
-        <p className="text-xs text-blue-600">{statusMessage}</p>
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700">
+          {statusMessage}
+        </div>
       )}
     </div>
   );
