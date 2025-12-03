@@ -20,16 +20,7 @@ import { getSettings } from "@/utils/settingsStorage";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export default function Home() {
-  const [jobDescription, setJobDescription] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
-  const [jdHistory, setJdHistory] = useState([]);
-  const [evaluations, setEvaluations] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [globalError, setGlobalError] = useState("");
-  const [selectedEvaluation, setSelectedEvaluation] = useState(null);
-  const [duplicateWarning, setDuplicateWarning] = useState(null);
-  const [settings, setSettings] = useState(null);
+cccc
 
   useEffect(() => {
     setJdHistory(getJDs());
