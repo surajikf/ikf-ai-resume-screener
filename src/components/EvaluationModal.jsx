@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FaTimes, FaRegEnvelope, FaCopy, FaChartLine, FaMapMarkerAlt, FaPaperPlane } from "react-icons/fa";
+import { FaTimes, FaRegEnvelope, FaCopy, FaChartLine, FaMapMarkerAlt, FaPaperPlane, FaWhatsapp } from "react-icons/fa";
 import { getSettings } from "@/utils/settingsStorage";
 
 const buildEmailBodyWithSignature = (body, signature) => {
@@ -23,15 +23,22 @@ const buildEmailBodyWithSignature = (body, signature) => {
   return `${trimmedBody}\n\n${signature.trim()}`;
 };
 
-const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) => {
+const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail, canSendWhatsApp }) => {
+  // Determine default tab based on available drafts
+  const defaultTab = candidate?.whatsappDraft && !candidate?.emailDraft ? "whatsapp" : "email";
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
   
-  // Initialize toEmail with candidate's email from resume, but keep it editable
+  // Email state
   const [toEmail, setToEmail] = useState(candidate?.candidateEmail || "");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  
+  // WhatsApp state
+  const [toWhatsApp, setToWhatsApp] = useState(candidate?.candidateWhatsApp || "");
+  const [whatsappMessage, setWhatsappMessage] = useState("");
 
   // Update email when candidate changes
   useEffect(() => {
@@ -39,6 +46,13 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) =
       setToEmail(candidate.candidateEmail);
     }
   }, [candidate?.candidateEmail]);
+
+  // Update WhatsApp when candidate changes
+  useEffect(() => {
+    if (candidate?.candidateWhatsApp) {
+      setToWhatsApp(candidate.candidateWhatsApp);
+    }
+  }, [candidate?.candidateWhatsApp]);
 
   // Initialize subject and body when candidate/emailDraft changes
   useEffect(() => {
@@ -52,6 +66,20 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) =
       );
     }
   }, [candidate?.emailDraft, emailSignature]);
+
+  // Initialize WhatsApp message when candidate/whatsappDraft changes
+  useEffect(() => {
+    if (candidate?.whatsappDraft) {
+      setWhatsappMessage(candidate.whatsappDraft.message || "");
+    }
+  }, [candidate?.whatsappDraft]);
+
+  // Update active tab when candidate changes
+  useEffect(() => {
+    const newDefaultTab = candidate?.whatsappDraft && !candidate?.emailDraft ? "whatsapp" : "email";
+    setActiveTab(newDefaultTab);
+  }, [candidate?.emailDraft, candidate?.whatsappDraft]);
+
 
   if (!candidate) return null;
   
@@ -107,6 +135,74 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) =
     }
   };
 
+  const handleCopyWhatsApp = async () => {
+    if (!whatsappMessage) return;
+    try {
+      await navigator.clipboard.writeText(whatsappMessage);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy WhatsApp message", error);
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!canSendWhatsApp) {
+      setSendStatus("Please enable WhatsApp messaging in Settings and configure WhatsApp API credentials.");
+      setTimeout(() => setSendStatus(""), 5000);
+      return;
+    }
+
+    if (!toWhatsApp || !whatsappMessage) {
+      setSendStatus("Please fill in all fields (To, Message)");
+      setTimeout(() => setSendStatus(""), 3000);
+      return;
+    }
+
+    setSending(true);
+    setSendStatus("");
+
+    try {
+      const settings = getSettings();
+      const response = await fetch("/api/send-whatsapp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: toWhatsApp,
+          message: whatsappMessage,
+          candidateName: candidate?.candidateName || "Candidate",
+          whatsappSendingEnabled: settings.whatsappSendingEnabled,
+          whatsappApiKey: settings.whatsappApiKey,
+          whatsappApiUrl: settings.whatsappApiUrl,
+          whatsappPhoneNumberId: settings.whatsappPhoneNumberId,
+          whatsappCompanyId: settings.whatsappCompanyId,
+          whatsappTemplateName: settings.whatsappTemplateName,
+          whatsappLanguage: settings.whatsappLanguage,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || "Failed to send WhatsApp message");
+      }
+
+      setSendStatus(`WhatsApp message sent successfully to ${toWhatsApp}`);
+      setTimeout(() => {
+        setSendStatus("");
+        setToWhatsApp("");
+      }, 3000);
+    } catch (error) {
+      setSendStatus(error.message || "Failed to send WhatsApp message");
+      setTimeout(() => setSendStatus(""), 5000);
+    } finally {
+      setSending(false);
+    }
+  };
+
+
   const handleSendEmail = async () => {
     if (!canSendEmail) {
       setSendStatus("Please enable email sending in Settings and configure Gmail API credentials.");
@@ -160,6 +256,8 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) =
       setSending(false);
     }
   };
+
+
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/60 px-4 py-8">
@@ -347,82 +445,181 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail }) =
             </div>
           </div>
 
-          {emailDraft && (
+          {(emailDraft || candidate?.whatsappDraft) && (
             <section className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-blue-700">
-                  <FaRegEnvelope />
-                  <h4 className="text-sm font-semibold">Email Draft</h4>
-                </div>
-                <div className="flex items-center gap-2">
+              {/* Tabs */}
+              <div className="flex items-center gap-2 mb-4 border-b border-blue-200">
+                {emailDraft && (
                   <button
                     type="button"
-                    onClick={handleSendEmail}
-                    disabled={sending}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                    onClick={() => setActiveTab("email")}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition ${
+                      activeTab === "email"
+                        ? "text-blue-700 border-b-2 border-blue-700"
+                        : "text-blue-500 hover:text-blue-700"
+                    }`}
                   >
-                    <FaPaperPlane />
-                    {sending ? "Sending..." : "Send Email"}
+                    <FaRegEnvelope />
+                    Email
                   </button>
+                )}
+                {candidate?.whatsappDraft && (
                   <button
                     type="button"
-                    onClick={handleCopyEmail}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-white px-2.5 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                    onClick={() => setActiveTab("whatsapp")}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition ${
+                      activeTab === "whatsapp"
+                        ? "text-blue-700 border-b-2 border-blue-700"
+                        : "text-blue-500 hover:text-blue-700"
+                    }`}
                   >
-                    <FaCopy />
-                    {copied ? "Copied" : "Copy"}
+                    <FaWhatsapp />
+                    WhatsApp
                   </button>
-                </div>
+                )}
               </div>
-              <div className="rounded-md bg-white p-4 text-sm text-slate-700">
-                <div className="flex flex-col gap-2 mb-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-slate-600">
-                      To
-                    </label>
-                    <input
-                      type="email"
-                      value={toEmail}
-                      onChange={(e) => setToEmail(e.target.value)}
-                      placeholder="candidate@example.com"
-                      className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    />
+
+              {/* Email Tab Content */}
+              {activeTab === "email" && emailDraft && (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 text-blue-700">
+                      <FaRegEnvelope />
+                      <h4 className="text-sm font-semibold">Email Draft</h4>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSendEmail}
+                        disabled={sending}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                      >
+                        <FaPaperPlane />
+                        {sending ? "Sending..." : "Send Email"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyEmail}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-white px-2.5 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                      >
+                        <FaCopy />
+                        {copied ? "Copied" : "Copy"}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-slate-600">
-                      Subject
-                    </label>
-                    <input
-                      type="text"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    />
+                  <div className="rounded-md bg-white p-4 text-sm text-slate-700">
+                    <div className="flex flex-col gap-2 mb-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-600">
+                          To
+                        </label>
+                        <input
+                          type="email"
+                          value={toEmail}
+                          onChange={(e) => setToEmail(e.target.value)}
+                          placeholder="candidate@example.com"
+                          className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-600">
+                          Subject
+                        </label>
+                        <input
+                          type="text"
+                          value={subject}
+                          onChange={(e) => setSubject(e.target.value)}
+                          className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                        />
+                      </div>
+                    </div>
+                    <pre className="whitespace-pre-wrap font-sans text-slate-600">
+                      <textarea
+                        rows={10}
+                        value={body}
+                        onChange={(e) => setBody(e.target.value)}
+                        className="w-full resize-none border-0 p-0 text-sm text-slate-700 outline-none focus:ring-0"
+                      />
+                    </pre>
                   </div>
-                </div>
-                <pre className="whitespace-pre-wrap font-sans text-slate-600">
-                  <textarea
-                    rows={10}
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    className="w-full resize-none border-0 p-0 text-sm text-slate-700 outline-none focus:ring-0"
-                  />
-                </pre>
-              </div>
+                </>
+              )}
+
+              {/* WhatsApp Tab Content */}
+              {activeTab === "whatsapp" && candidate?.whatsappDraft && (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 text-blue-700">
+                      <FaWhatsapp />
+                      <h4 className="text-sm font-semibold">WhatsApp Message</h4>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSendWhatsApp}
+                        disabled={sending}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                      >
+                        <FaPaperPlane />
+                        {sending ? "Sending..." : "Send WhatsApp"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyWhatsApp}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-white px-2.5 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                      >
+                        <FaCopy />
+                        {copied ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-md bg-white p-4 text-sm text-slate-700">
+                    <div className="flex flex-col gap-2 mb-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-600">
+                          To (WhatsApp Number)
+                        </label>
+                        <input
+                          type="text"
+                          value={toWhatsApp}
+                          onChange={(e) => setToWhatsApp(e.target.value)}
+                          placeholder="9307768467"
+                          className="w-full rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                        />
+                      </div>
+                    </div>
+                    <pre className="whitespace-pre-wrap font-sans text-slate-600">
+                      <textarea
+                        rows={10}
+                        value={whatsappMessage}
+                        onChange={(e) => setWhatsappMessage(e.target.value)}
+                        className="w-full resize-none border-0 p-0 text-sm text-slate-700 outline-none focus:ring-0"
+                      />
+                    </pre>
+                  </div>
+                </>
+              )}
+
+              {/* Status Message */}
               {sendStatus && (
                 <div className={`mt-2 rounded-md px-3 py-2 text-xs ${
                   sendStatus.includes("successfully") 
                     ? "bg-green-50 text-green-700 border border-green-200"
-                    : sendStatus.includes("Settings") || sendStatus.includes("Failed")
+                    : sendStatus.includes("Settings") || sendStatus.includes("API Key") || sendStatus.includes("Failed")
                     ? "bg-red-50 text-red-700 border border-red-200"
                     : "bg-blue-50 text-blue-700 border border-blue-200"
                 }`}>
-                  {sendStatus}
-                  {sendStatus.includes("Settings") && (
-                    <Link href="/settings" className="ml-2 underline font-semibold">
-                      Go to Settings
-                    </Link>
-                  )}
+                  <div className="flex items-start gap-2">
+                    <span className="flex-1">{sendStatus}</span>
+                    {(sendStatus.includes("Settings") || sendStatus.includes("API Key")) && (
+                      <Link 
+                        href="/settings" 
+                        className="ml-2 underline font-semibold text-red-800 hover:text-red-900 whitespace-nowrap"
+                      >
+                        Go to Settings →
+                      </Link>
+                    )}
+                  </div>
                 </div>
               )}
             </section>

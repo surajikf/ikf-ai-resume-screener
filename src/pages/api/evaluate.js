@@ -27,6 +27,7 @@ Your Tasks:
 3. Generate a structured Evaluation Summary with the following keys:
    - candidateName
    - candidateEmail (string: email address extracted from resume, or empty string if not found)
+   - candidateWhatsApp (string: WhatsApp number extracted from resume as 10-digit number XXXXXXXXXX without country code, or empty string if not found)
    - roleApplied
    - experienceCtcNoticeLocation (single string summarizing experience, CTC, notice period, and location)
    - candidateLocation (string: current location of the candidate)
@@ -42,7 +43,8 @@ Your Tasks:
 4. Generate one matching email draft (from the templates provided below) and include:
    - subject (MUST be professional, informative, and follow the subject guidelines - include company name, role, and purpose)
    - body
-5. Email subjects MUST be logical, professional, and informative. They should clearly indicate:
+5. Generate one WhatsApp message draft (from the templates provided below) based on the same verdict. The WhatsApp message will be inserted into template variable {{messagebody}}. The template already has greeting, closing, and signature, so generate ONLY the main message content.
+6. Email subjects MUST be logical, professional, and informative. They should clearly indicate:
    - Company name (IKF)
    - The specific role/position
    - The purpose/action (e.g., "Interview Invitation", "Application Update", "Next Steps")
@@ -65,18 +67,34 @@ SCORING GUIDELINES:
 - matchScore should reflect overall suitability: Recommended (80-100), Partially Suitable (50-79), Not Suitable (0-49)
 - scoreBreakdown should provide detailed scores for each category
 
-IMPORTANT: Extract the candidate's email address from the resume text. Look for patterns like:
+IMPORTANT: Extract the candidate's contact information from the resume text:
+
+For Email: Look for patterns like:
 - email@domain.com
 - Email: email@domain.com
 - Contact: email@domain.com
 - email addresses in contact sections
 If found, include it in candidateEmail. If not found, use empty string.
 
+For WhatsApp: Look for phone numbers in various formats:
+- +91XXXXXXXXXX (with country code - extract only the 10 digits)
+- 91XXXXXXXXXX (country code without + - extract only the 10 digits)
+- XXXXXXXXXX (10-digit Indian numbers - use as is)
+- Phone: +91XXXXXXXXXX (extract only the 10 digits)
+- Mobile: XXXXXXXXXX (use as is)
+- WhatsApp: +91XXXXXXXXXX (extract only the 10 digits)
+- Contact: +91XXXXXXXXXX (extract only the 10 digits)
+
+IMPORTANT: Extract ONLY the 10-digit number without country code. Remove any country code prefix (+91, 91, etc.) and store just the 10-digit number (e.g., "9307768467", not "+919307768467" or "919307768467").
+
+If found, include the 10-digit number in candidateWhatsApp. If not found, use empty string.
+
 Respond strictly as JSON with the following shape:
 {
   "evaluationSummary": {
     "candidateName": string,
     "candidateEmail": string,
+    "candidateWhatsApp": string,
     "roleApplied": string,
     "experienceCtcNoticeLocation": string,
     "candidateLocation": string,
@@ -98,6 +116,9 @@ Respond strictly as JSON with the following shape:
   "emailDraft": {
     "subject": string,
     "body": string
+  },
+  "whatsappDraft": {
+    "message": string
   }
 }
 

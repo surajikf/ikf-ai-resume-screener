@@ -20,7 +20,16 @@ import { getSettings } from "@/utils/settingsStorage";
 
 const inter = Inter({ subsets: ["latin"] });
 
-cccc
+export default function Home() {
+  const [jobDescription, setJobDescription] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [jdHistory, setJdHistory] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [globalError, setGlobalError] = useState("");
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const [selectedEvaluation, setSelectedEvaluation] = useState(null);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     setJdHistory(getJDs());
@@ -134,6 +143,7 @@ cccc
       const data = await response.json();
       const summary = data?.result?.evaluationSummary || {};
       const emailDraft = data?.result?.emailDraft || null;
+      const whatsappDraft = data?.result?.whatsappDraft || null;
 
       const candidateName = summary.candidateName || "Candidate";
       const roleApplied = summary.roleApplied || jobTitle || "Role";
@@ -155,6 +165,7 @@ cccc
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         candidateName,
         candidateEmail: summary.candidateEmail || "",
+        candidateWhatsApp: summary.candidateWhatsApp || "",
         roleApplied,
         experience: summary.experienceCtcNoticeLocation || "",
         candidateLocation: summary.candidateLocation || "",
@@ -173,6 +184,7 @@ cccc
           locationMatch: 0,
         },
         emailDraft,
+        whatsappDraft,
         jobTitle: data?.metadata?.jobDescriptionTitle || jobTitle,
         jdLink: data?.metadata?.jdLink || "",
         createdAt: new Date().toISOString(),
@@ -318,6 +330,7 @@ cccc
             onClose={() => setSelectedEvaluation(null)}
             emailSignature={settings?.emailSignature}
             canSendEmail={!!settings?.emailSendingEnabled}
+            canSendWhatsApp={!!settings?.whatsappSendingEnabled}
           />
         )}
       </main>

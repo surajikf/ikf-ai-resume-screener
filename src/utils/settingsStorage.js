@@ -10,6 +10,13 @@ const DEFAULT_SETTINGS = {
   googleClientSecret: "",
   googleRefreshToken: "",
   googleSenderEmail: "",
+  whatsappSendingEnabled: false,
+  whatsappApiKey: "",
+  whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
+  whatsappPhoneNumberId: "",
+  whatsappCompanyId: "",
+  whatsappTemplateName: "",
+  whatsappLanguage: "en",
 };
 
 export const getSettings = () => {
