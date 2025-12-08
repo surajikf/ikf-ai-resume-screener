@@ -1,3 +1,5 @@
+import nodemailer from 'nodemailer';
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
@@ -10,6 +12,8 @@ export default async function handler(req, res) {
     subject,
     body,
     emailSendingEnabled,
+    gmailEmail,
+    gmailAppPassword,
     googleClientId,
     googleClientSecret,
     googleRefreshToken,
@@ -29,45 +33,132 @@ export default async function handler(req, res) {
     });
 
     res.status(200).json({
+      success: true,
       status: "simulated",
       message: "Email sending is disabled in settings.",
     });
     return;
   }
 
-  // Check if all Gmail API credentials are provided
-  if (!googleClientId || !googleClientSecret || !googleRefreshToken || !googleSenderEmail) {
-    res.status(400).json({
-      error: "Missing Gmail API credentials. Please configure all fields in Settings.",
+  let emailStatus = "sent";
+  let errorMessage = null;
+  let messageId = null;
+
+  try {
+    // Try Gmail SMTP first (simpler - uses email + app password)
+    if (gmailEmail && gmailAppPassword) {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: gmailEmail,
+          pass: gmailAppPassword, // This should be an App Password, not regular password
+        },
+      });
+
+      const mailOptions = {
+        from: gmailEmail,
+        to: to,
+        subject: subject,
+        text: body,
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      messageId = info.messageId;
+      console.log("[send-email] Email sent via SMTP:", {
+        to,
+        subject,
+        messageId: info.messageId,
+      });
+      emailStatus = "sent";
+    }
+    // Fallback to Gmail API (OAuth2) if SMTP credentials not available
+    else if (googleClientId && googleClientSecret && googleRefreshToken && googleSenderEmail) {
+      const { google } = require('googleapis');
+      
+      const oauth2Client = new google.auth.OAuth2(
+        googleClientId,
+        googleClientSecret,
+        'urn:ietf:wg:oauth:2.0:oob'
+      );
+
+      oauth2Client.setCredentials({
+        refresh_token: googleRefreshToken,
+      });
+
+      const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+      const messageParts = [
+        `To: ${to}`,
+        `From: ${googleSenderEmail}`,
+        `Subject: ${subject}`,
+        'Content-Type: text/plain; charset=utf-8',
+        '',
+        body,
+      ];
+
+      const message = messageParts.join('\n');
+      const encodedMessage = Buffer.from(message)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      const response = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage,
+        },
+      });
+
+      messageId = response.data.id;
+      console.log("[send-email] Email sent via Gmail API:", {
+        to,
+        subject,
+        messageId: response.data.id,
+      });
+      emailStatus = "sent";
+    } else {
+      throw new Error("Missing email credentials. Please provide either Gmail email + App Password, or Gmail API OAuth2 credentials.");
+    }
+  } catch (error) {
+    console.error("[send-email] Email sending error:", error);
+    emailStatus = "failed";
+    errorMessage = error.message || 'Failed to send email';
+    
+    res.status(500).json({
+      success: false,
+      error: errorMessage,
+      details: error.response?.data || error.message,
     });
     return;
   }
 
-  // TODO: Implement actual Gmail API integration here
-  // You can use the googleapis npm package:
-  // npm install googleapis
-  //
-  // Example implementation:
-  // const { google } = require('googleapis');
-  // const oauth2Client = new google.auth.OAuth2(
-  //   googleClientId,
-  //   googleClientSecret
-  // );
-  // oauth2Client.setCredentials({ refresh_token: googleRefreshToken });
-  // const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-  // 
-  // Then use gmail.users.messages.send() to send the email
-
-  console.log("[send-email] Email send request received:", {
-    to,
-    subject,
-    from: googleSenderEmail,
-    hasCredentials: !!(googleClientId && googleClientSecret && googleRefreshToken),
-  });
+  // Log to database if evaluationId is provided
+  const { evaluationId } = req.body || {};
+  if (evaluationId) {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'}/api/logs/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          evaluationId,
+          toEmail: to,
+          subject,
+          body,
+          status: emailStatus,
+          errorMessage,
+        }),
+      });
+    } catch (logError) {
+      console.log('Email log save failed:', logError);
+    }
+  }
 
   res.status(200).json({
-    status: "accepted",
-    message: "Email send request received. Gmail API integration pending - implement in /api/send-email.js",
+    success: true,
+    status: emailStatus,
+    message: emailStatus === "sent" ? "Email sent successfully via Gmail API" : "Email sending failed",
+    messageId: emailStatus === "sent" ? "sent" : null,
   });
 }
 

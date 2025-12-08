@@ -6,6 +6,8 @@ const DEFAULT_SETTINGS = {
     "📞 +91 9665079317",
   ].join("\n"),
   emailSendingEnabled: false,
+  gmailEmail: "",
+  gmailAppPassword: "",
   googleClientId: "",
   googleClientSecret: "",
   googleRefreshToken: "",

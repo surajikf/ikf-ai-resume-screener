@@ -28,8 +28,10 @@ Your Tasks:
    - candidateName
    - candidateEmail (string: email address extracted from resume, or empty string if not found)
    - candidateWhatsApp (string: WhatsApp number extracted from resume as 10-digit number XXXXXXXXXX without country code, or empty string if not found)
+   - linkedInUrl (string: LinkedIn profile URL if found in resume, or empty string if not found)
    - roleApplied
    - experienceCtcNoticeLocation (single string summarizing experience, CTC, notice period, and location)
+   - workExperience (array of objects with detailed work history: Extract ALL companies where the candidate worked, with duration at each company. Each object should have: companyName (string), duration (string like "2 years 3 months" or "1 year 6 months" or "6 months"), role (string, optional - job title at this company). List companies in chronological order (most recent first). Calculate total experience from all companies and include it as the last item with companyName: "Total Experience" and duration as the sum of all durations.)
    - candidateLocation (string: current location of the candidate)
    - companyLocation (string: company/job location from JD, or "Not specified" if not mentioned)
    - keyStrengths (array of strings)
@@ -39,7 +41,7 @@ Your Tasks:
    - verdict ("Recommended" | "Partially Suitable" | "Not Suitable")
    - betterSuitedFocus (string describing the general area the candidate fits best when verdict is "Not Suitable"; empty otherwise)
    - matchScore (integer 0-100: overall match percentage based on JD requirements, gaps, and location)
-   - scoreBreakdown (object with keys: jdMatch (0-100), educationMatch (0-100), experienceMatch (0-100), locationMatch (0-100))
+   - scoreBreakdown (object with keys: jdMatch (0-100), educationMatch (0-100), experienceMatch (0-100), locationMatch (0-100), stabilityScore (0-100: calculated based on job tenure stability - longer tenures at companies indicate higher stability))
 4. Generate one matching email draft (from the templates provided below) and include:
    - subject (MUST be professional, informative, and follow the subject guidelines - include company name, role, and purpose)
    - body
@@ -89,14 +91,52 @@ IMPORTANT: Extract ONLY the 10-digit number without country code. Remove any cou
 
 If found, include the 10-digit number in candidateWhatsApp. If not found, use empty string.
 
+IMPORTANT: Extract LinkedIn profile URL from the resume text:
+- Look for patterns like:
+  - linkedin.com/in/username
+  - www.linkedin.com/in/username
+  - https://linkedin.com/in/username
+  - https://www.linkedin.com/in/username
+  - LinkedIn: linkedin.com/in/username
+  - LinkedIn Profile: https://www.linkedin.com/in/username
+- If found, include the full URL (with https://) in linkedInUrl
+- If not found, use empty string
+
+IMPORTANT: Extract detailed work experience from the resume:
+- Parse the work history/employment section carefully
+- Extract each company name where the candidate worked
+- Calculate the duration at each company (years and months)
+- Extract the job title/role at each company (if mentioned)
+- List all companies in chronological order (most recent first)
+- Calculate total experience by summing all durations
+- Include total experience as the last item in workExperience array with companyName: "Total Experience"
+- Format durations as: "X years Y months" or "X year Y months" or "Y months" (for less than a year)
+- If exact dates are not available, estimate based on the resume content
+- If no work experience is found, use an empty array []
+
+Example workExperience format:
+[
+  {"companyName": "ABC Corp", "duration": "2 years 3 months", "role": "Senior Manager"},
+  {"companyName": "XYZ Ltd", "duration": "1 year 6 months", "role": "Manager"},
+  {"companyName": "Total Experience", "duration": "3 years 9 months"}
+]
+
 Respond strictly as JSON with the following shape:
 {
   "evaluationSummary": {
     "candidateName": string,
     "candidateEmail": string,
     "candidateWhatsApp": string,
+    "linkedInUrl": string,
     "roleApplied": string,
     "experienceCtcNoticeLocation": string,
+    "workExperience": [
+      {
+        "companyName": string,
+        "duration": string (e.g., "2 years 3 months", "1 year 6 months", "6 months"),
+        "role": string (optional, job title at this company)
+      }
+    ],
     "candidateLocation": string,
     "companyLocation": string,
     "keyStrengths": string[],
@@ -110,7 +150,8 @@ Respond strictly as JSON with the following shape:
       "jdMatch": number (0-100),
       "educationMatch": number (0-100),
       "experienceMatch": number (0-100),
-      "locationMatch": number (0-100)
+      "locationMatch": number (0-100),
+      "stabilityScore": number (0-100)
     }
   },
   "emailDraft": {
@@ -300,6 +341,9 @@ export default async function handler(req, res) {
       jobDescriptionTitle: jobDescription.split("\n")[0]?.trim() || "",
       jdLink,
     };
+
+    // Note: Database save is handled in the frontend after evaluation completes
+    // This keeps the evaluate endpoint focused on evaluation only
 
     res.status(200).json({
       result,

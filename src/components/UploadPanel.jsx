@@ -16,6 +16,7 @@ const UploadPanel = ({
   onUseJD,
   onDeleteJD,
   onClearJDs,
+  onUpdateJD,
   onEvaluate,
   onJDFileUpload,
   loading,
@@ -116,10 +117,10 @@ const UploadPanel = ({
   const canEvaluate = resumeFiles.length > 0 && jobDescription.trim() && !loading;
 
   return (
-    <div className="space-y-6">
+      <div className="space-y-4">
       {/* Step 1: Upload Resumes */}
-      <div className="rounded-2xl bg-white shadow-lg border border-slate-200 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-slate-200">
+      <div className="rounded-lg bg-white border border-slate-200 overflow-hidden">
+        <div className="bg-blue-50 px-4 py-3 border-b border-slate-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold">
@@ -138,17 +139,17 @@ const UploadPanel = ({
           </div>
         </div>
         
-        <div className="p-6">
+        <div className="p-4">
           <label
             htmlFor="resume-upload"
-            className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed transition-all ${
+            className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed ${
               resumeFiles.length > 0
                 ? 'border-blue-300 bg-blue-50'
                 : 'border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50'
-            } px-6 py-12`}
+            } px-4 py-8`}
           >
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-              <FaUpload className="text-2xl text-blue-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+              <FaUpload className="text-xl text-blue-600" />
             </div>
             <div className="text-center">
               <p className="text-base font-semibold text-slate-900">
@@ -176,7 +177,7 @@ const UploadPanel = ({
               {resumeFiles.map((file) => (
                 <div
                   key={`${file.name}-${file.size}`}
-                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-slate-900">{file.name}</p>
@@ -185,7 +186,7 @@ const UploadPanel = ({
                   <button
                     type="button"
                     onClick={() => handleRemoveFile(file)}
-                    className="ml-4 flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                    className="ml-4 flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-red-300 hover:bg-red-50 hover:text-red-600"
                   >
                     <FaTrashAlt />
                     Remove
@@ -195,7 +196,7 @@ const UploadPanel = ({
               <button
                 type="button"
                 onClick={handleClearFiles}
-                className="text-sm font-medium text-slate-600 hover:text-red-600 transition"
+                className="text-sm font-medium text-slate-600 hover:text-red-600"
               >
                 Clear all files
               </button>
@@ -205,8 +206,8 @@ const UploadPanel = ({
       </div>
 
       {/* Step 2: Job Description */}
-      <div className="rounded-2xl bg-white shadow-lg border border-slate-200 overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-slate-200">
+      <div className="rounded-lg bg-white border border-slate-200 overflow-hidden">
+        <div className="bg-purple-50 px-4 py-3 border-b border-slate-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
@@ -220,12 +221,16 @@ const UploadPanel = ({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {jdHistory.length > 0 && (
+              {jobDescription.trim() && (
                 <button
                   type="button"
                   onClick={onSaveJD}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 hover:border-blue-400"
+                  title="Save this job description for quick access"
                 >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
                   Save JD
                 </button>
               )}
@@ -233,7 +238,7 @@ const UploadPanel = ({
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {jdHistory.length > 0 && (
             <div className="mb-4">
               <JDHistoryPanel
@@ -241,6 +246,7 @@ const UploadPanel = ({
                 onUseJD={onUseJD}
                 onDeleteJD={onDeleteJD}
                 onClearJDs={onClearJDs}
+                onUpdateJD={onUpdateJD}
               />
             </div>
           )}
@@ -262,7 +268,7 @@ const UploadPanel = ({
 
       {/* Step 3: Evaluate Button */}
       <div className="sticky bottom-4 z-20">
-        <div className="rounded-2xl bg-white shadow-xl border-2 border-slate-200 p-6">
+        <div className="rounded-lg bg-white border border-slate-200 p-4">
           {error && (
             <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
@@ -277,18 +283,23 @@ const UploadPanel = ({
           <button
             type="button"
             onClick={handleRunEvaluation}
-            disabled={!canEvaluate}
-            className={`w-full flex items-center justify-center gap-3 rounded-xl px-6 py-4 text-base font-bold text-white shadow-lg transition-all ${
-              canEvaluate
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl hover:scale-[1.02]'
+            disabled={!canEvaluate || loading}
+            className={`w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white ${
+              canEvaluate && !loading
+                ? 'bg-blue-600 hover:bg-blue-700'
                 : 'bg-slate-300 cursor-not-allowed'
             }`}
           >
-            <FaPlay className="text-lg" />
             {loading ? (
-              <span>Evaluating {resumeFiles.length} resume{resumeFiles.length > 1 ? 's' : ''}...</span>
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                <span>Evaluating {resumeFiles.length} resume{resumeFiles.length > 1 ? 's' : ''}...</span>
+              </>
             ) : (
-              <span>Evaluate {resumeFiles.length > 0 ? `${resumeFiles.length} ` : ''}Resume{resumeFiles.length !== 1 ? 's' : ''}</span>
+              <>
+                <FaPlay className="text-sm" />
+                <span>Evaluate {resumeFiles.length > 0 ? `${resumeFiles.length} ` : ''}Resume{resumeFiles.length !== 1 ? 's' : ''}</span>
+              </>
             )}
           </button>
           

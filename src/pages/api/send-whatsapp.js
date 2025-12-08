@@ -210,6 +210,27 @@ export default async function handler(req, res) {
         message_id: responseData.data.message_id,
       });
 
+      // Log to database if evaluationId is provided
+      const { evaluationId } = req.body || {};
+      if (evaluationId) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'}/api/logs/whatsapp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              evaluationId,
+              toWhatsApp: number,
+              message: fullMessage,
+              status: 'sent',
+              messageId: responseData.data.message_id,
+              conversationId: responseData.data.conversation_id,
+            }),
+          });
+        } catch (logError) {
+          console.log('WhatsApp log save failed:', logError);
+        }
+      }
+
       return res.status(200).json({
         success: true,
         message: `WhatsApp message sent successfully to ${number}`,
@@ -228,6 +249,27 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error("[send-whatsapp] Error:", error);
+    
+    // Log error to database if evaluationId is provided
+    const { evaluationId, to, message } = req.body || {};
+    if (evaluationId && to && message) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'}/api/logs/whatsapp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            evaluationId,
+            toWhatsApp: to,
+            message,
+            status: 'failed',
+            errorMessage: error.message || "An unexpected error occurred.",
+          }),
+        });
+      } catch (logError) {
+        console.log('WhatsApp error log save failed:', logError);
+      }
+    }
+    
     return res.status(500).json({
       error: "Failed to send WhatsApp message",
       message: error.message || "An unexpected error occurred.",

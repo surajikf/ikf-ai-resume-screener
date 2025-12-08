@@ -1,9 +1,14 @@
+import { useState } from "react";
 import CandidateCard from "@/components/CandidateCard";
+import BulkSendModal from "@/components/BulkSendModal";
 import {
   FaCheckCircle,
   FaHourglassHalf,
   FaTimesCircle,
   FaLightbulb,
+  FaEnvelope,
+  FaWhatsapp,
+  FaSpinner,
 } from "react-icons/fa";
 
 const columnConfig = [
@@ -27,7 +32,10 @@ const columnConfig = [
   },
 ];
 
-const JiraBoard = ({ evaluations, onSelectCandidate }) => {
+const JiraBoard = ({ evaluations, onSelectCandidate, onBulkSendEmail, onBulkSendWhatsApp, canSendEmail, canSendWhatsApp, settings }) => {
+  const [bulkSending, setBulkSending] = useState({});
+  const [bulkStatus, setBulkStatus] = useState({});
+  const [bulkModal, setBulkModal] = useState({ isOpen: false, type: null, candidates: null });
   const grouped = columnConfig.map((column) => ({
     ...column,
     items: evaluations.filter((item) => item.verdict === column.key),
@@ -35,9 +43,67 @@ const JiraBoard = ({ evaluations, onSelectCandidate }) => {
 
   const hasAnyCandidates = evaluations.length > 0;
 
+  const handleBulkEmail = (status, candidates) => {
+    if (!canSendEmail) {
+      setBulkStatus(prev => ({ ...prev, [status]: "Please enable email sending in Settings" }));
+      setTimeout(() => setBulkStatus(prev => {
+        const updated = { ...prev };
+        delete updated[status];
+        return updated;
+      }), 5000);
+      return;
+    }
+
+    const candidatesWithEmail = candidates.filter(c => c.candidateEmail && c.candidateEmail.trim());
+    if (candidatesWithEmail.length === 0) {
+      setBulkStatus(prev => ({ ...prev, [status]: "No candidates with email addresses in this category" }));
+      setTimeout(() => setBulkStatus(prev => {
+        const updated = { ...prev };
+        delete updated[status];
+        return updated;
+      }), 5000);
+      return;
+    }
+
+    setBulkModal({ isOpen: true, type: 'email', candidates: candidatesWithEmail });
+  };
+
+  const handleBulkWhatsApp = (status, candidates) => {
+    if (!canSendWhatsApp) {
+      setBulkStatus(prev => ({ ...prev, [status]: "Please enable WhatsApp sending in Settings" }));
+      setTimeout(() => setBulkStatus(prev => {
+        const updated = { ...prev };
+        delete updated[status];
+        return updated;
+      }), 5000);
+      return;
+    }
+
+    const candidatesWithWhatsApp = candidates.filter(c => c.candidateWhatsApp && c.candidateWhatsApp.trim());
+    if (candidatesWithWhatsApp.length === 0) {
+      setBulkStatus(prev => ({ ...prev, [status]: "No candidates with WhatsApp numbers in this category" }));
+      setTimeout(() => setBulkStatus(prev => {
+        const updated = { ...prev };
+        delete updated[status];
+        return updated;
+      }), 5000);
+      return;
+    }
+
+    setBulkModal({ isOpen: true, type: 'whatsapp', candidates: candidatesWithWhatsApp });
+  };
+
+  const handleSendIndividual = async (messageData, type) => {
+    if (type === 'email') {
+      return await onBulkSendEmail([messageData]);
+    } else {
+      return await onBulkSendWhatsApp([messageData]);
+    }
+  };
+
   return (
     <section className="flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <h2 className="text-lg font-semibold text-slate-900">
           Candidates
         </h2>
@@ -57,18 +123,67 @@ const JiraBoard = ({ evaluations, onSelectCandidate }) => {
           {grouped.map((column) => (
             <div
               key={column.key}
-              className="flex min-h-[420px] flex-col gap-4 rounded-xl bg-slate-50 p-4"
+              className="flex min-h-[420px] flex-col gap-3 rounded-lg bg-slate-50 p-3"
             >
-              <div
-                className={`flex items-center justify-between rounded-lg border px-4 py-2.5 text-sm font-semibold text-slate-700 ${column.accent}`}
-              >
-                <div className="flex items-center gap-2">
-                  {column.icon}
-                  <span>{column.title}</span>
+              <div className={`rounded-lg border px-4 py-2.5 ${column.accent}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {column.icon}
+                    <span className="text-sm font-semibold text-slate-700">{column.title}</span>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                    {column.items.length}
+                  </span>
                 </div>
-                <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                  {column.items.length}
-                </span>
+                {column.items.length > 0 && (
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200">
+                    <button
+                      onClick={() => handleBulkEmail(column.key, column.items)}
+                      disabled={bulkSending[`${column.key}_email`] || !canSendEmail}
+                      className={`flex-1 flex items-center justify-center gap-1.5 rounded px-2 py-1 text-xs font-medium ${
+                        canSendEmail && !bulkSending[`${column.key}_email`]
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
+                      title={canSendEmail ? `Send email to all ${column.title} candidates` : 'Enable email in Settings'}
+                    >
+                      {bulkSending[`${column.key}_email`] ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaEnvelope />
+                      )}
+                      Email
+                    </button>
+                    <button
+                      onClick={() => handleBulkWhatsApp(column.key, column.items)}
+                      disabled={bulkSending[`${column.key}_whatsapp`] || !canSendWhatsApp}
+                      className={`flex-1 flex items-center justify-center gap-1.5 rounded px-2 py-1 text-xs font-medium ${
+                        canSendWhatsApp && !bulkSending[`${column.key}_whatsapp`]
+                          ? 'bg-green-600 text-white hover:bg-green-700'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
+                      title={canSendWhatsApp ? `Send WhatsApp to all ${column.title} candidates` : 'Enable WhatsApp in Settings'}
+                    >
+                      {bulkSending[`${column.key}_whatsapp`] ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaWhatsapp />
+                      )}
+                      WhatsApp
+                    </button>
+                  </div>
+                )}
+                {bulkStatus[column.key] && (
+                  <div className={`mt-2 text-xs px-2 py-1 rounded ${
+                    bulkStatus[column.key].includes('Error') 
+                      ? 'bg-red-50 text-red-700' 
+                      : bulkStatus[column.key].includes('Sent') || bulkStatus[column.key].includes('Success')
+                      ? 'bg-green-50 text-green-700'
+                      : 'bg-blue-50 text-blue-700'
+                  }`}>
+                    {bulkStatus[column.key]}
+                  </div>
+                )}
               </div>
               <div className="flex flex-1 flex-col gap-3">
                 {column.items.length === 0 ? (
@@ -89,6 +204,17 @@ const JiraBoard = ({ evaluations, onSelectCandidate }) => {
           ))}
         </div>
       )}
+
+      <BulkSendModal
+        isOpen={bulkModal.isOpen}
+        onClose={() => setBulkModal({ isOpen: false, type: null, candidates: null })}
+        candidates={bulkModal.candidates}
+        type={bulkModal.type}
+        onSendAll={bulkModal.type === 'email' ? onBulkSendEmail : onBulkSendWhatsApp}
+        onSendIndividual={handleSendIndividual}
+        canSend={bulkModal.type === 'email' ? canSendEmail : canSendWhatsApp}
+        settings={settings}
+      />
     </section>
   );
 };

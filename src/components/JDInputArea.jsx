@@ -41,10 +41,10 @@ const JDInputArea = ({ value, onChange, onFileUpload }) => {
         onChange={(event) => onChange(event.target.value)}
         placeholder="Paste or type the job description here... Include key requirements, responsibilities, and qualifications."
         rows={12}
-        className="w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
       />
       <div className="flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700">
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700">
           <FaFileUpload />
           {uploading ? "Uploading..." : "Upload JD File"}
           <input
