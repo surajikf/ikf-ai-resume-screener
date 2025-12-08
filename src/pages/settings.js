@@ -278,8 +278,8 @@ export default function SettingsPage() {
                               <p className="text-xs font-semibold text-emerald-900 mb-1">📋 How to Generate App Password:</p>
                               <ol className="text-xs text-emerald-800 space-y-1 list-decimal list-inside ml-1">
                                 <li>Go to: <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" className="underline font-medium">Google Account Security</a></li>
-                                <li>Enable <strong>"2-Step Verification"</strong> (if not already enabled)</li>
-                                <li>Click <strong>"App passwords"</strong> (under "2-Step Verification")</li>
+                                <li>Enable <strong>&quot;2-Step Verification&quot;</strong> (if not already enabled)</li>
+                                <li>Click <strong>&quot;App passwords&quot;</strong> (under &quot;2-Step Verification&quot;)</li>
                                 <li>Select app: <strong>&quot;Mail&quot;</strong> and device: <strong>&quot;Other (Custom name)&quot;</strong></li>
                                 <li>Enter name: <strong>&quot;Resume Screener&quot;</strong> → Click <strong>&quot;Generate&quot;</strong></li>
                                 <li>Copy the <strong>16-character password</strong> (no spaces) and paste it above</li>
