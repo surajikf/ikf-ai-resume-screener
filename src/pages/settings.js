@@ -280,8 +280,8 @@ export default function SettingsPage() {
                                 <li>Go to: <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" className="underline font-medium">Google Account Security</a></li>
                                 <li>Enable <strong>"2-Step Verification"</strong> (if not already enabled)</li>
                                 <li>Click <strong>"App passwords"</strong> (under "2-Step Verification")</li>
-                                <li>Select app: <strong>"Mail"</strong> and device: <strong>"Other (Custom name)"</strong></li>
-                                <li>Enter name: <strong>"Resume Screener"</strong> → Click <strong>"Generate"</strong></li>
+                                <li>Select app: <strong>&quot;Mail&quot;</strong> and device: <strong>&quot;Other (Custom name)&quot;</strong></li>
+                                <li>Enter name: <strong>&quot;Resume Screener&quot;</strong> → Click <strong>&quot;Generate&quot;</strong></li>
                                 <li>Copy the <strong>16-character password</strong> (no spaces) and paste it above</li>
                               </ol>
                               <p className="text-xs text-emerald-700 mt-2 font-medium">⚠️ Important: Use the App Password, NOT your regular Gmail password!</p>
@@ -297,7 +297,7 @@ export default function SettingsPage() {
                         </summary>
                         <div className="p-3 space-y-3 border-t border-slate-200">
                           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 mb-3">
-                            <p className="text-xs font-semibold text-blue-900 mb-2">✅ You already have OAuth credentials! Here's how to use them:</p>
+                            <p className="text-xs font-semibold text-blue-900 mb-2">✅ You already have OAuth credentials! Here&apos;s how to use them:</p>
                             <p className="text-xs text-blue-800 mb-2">Your credentials are already configured. You just need to get a Refresh Token (one-time setup).</p>
                             <p className="text-xs font-semibold text-blue-900 mb-2">📋 Get Refresh Token (Choose ONE method):</p>
                             
@@ -305,7 +305,7 @@ export default function SettingsPage() {
                               <p className="text-xs font-semibold text-blue-900 mb-1">Method A: OAuth Playground (Easiest)</p>
                               <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside ml-1">
                                 <li>Go to: <a href="https://developers.google.com/oauthplayground/" target="_blank" rel="noopener noreferrer" className="underline font-medium text-blue-600">OAuth Playground</a></li>
-                                <li>Click ⚙️ gear icon → Check "Use your own OAuth credentials"</li>
+                                <li>Click ⚙️ gear icon → Check &quot;Use your own OAuth credentials&quot;</li>
                                 <li>Enter:
                                   <div className="ml-3 mt-1 p-1.5 bg-slate-50 rounded font-mono text-xs">
                                     Client ID: 1016999992905-60298ij6g0qln710hhkc58ab9nke433b.apps.googleusercontent.com<br/>
@@ -313,8 +313,8 @@ export default function SettingsPage() {
                                   </div>
                                 </li>
                                 <li>Select: Gmail API v1 → <code className="bg-slate-100 px-1">https://www.googleapis.com/auth/gmail.send</code></li>
-                                <li>Click "Authorize APIs" → Sign in → "Exchange authorization code for tokens"</li>
-                                <li>Copy the "Refresh token" and paste below</li>
+                                <li>Click &quot;Authorize APIs&quot; → Sign in → &quot;Exchange authorization code for tokens&quot;</li>
+                                <li>Copy the &quot;Refresh token&quot; and paste below</li>
                               </ol>
                             </div>
 
@@ -323,13 +323,13 @@ export default function SettingsPage() {
                               <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside ml-1">
                                 <li>Go to: <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline font-medium text-blue-600">Google Cloud Console</a></li>
                                 <li>Click your OAuth client (Web client 1)</li>
-                                <li>In "Authorized redirect URIs", add:
+                                <li>In &quot;Authorized redirect URIs&quot;, add:
                                   <div className="ml-3 mt-1 p-1.5 bg-slate-50 rounded font-mono text-xs space-y-1">
                                     <div>✅ https://developers.google.com/oauthplayground</div>
                                     <div>✅ http://localhost:3001/api/gmail-oauth/callback</div>
                                   </div>
                                 </li>
-                                <li>Click "Save" and wait 5-10 minutes for changes to propagate</li>
+                                <li>Click &quot;Save&quot; and wait 5-10 minutes for changes to propagate</li>
                                 <li>Try Method A again</li>
                               </ol>
                             </div>
@@ -398,7 +398,7 @@ export default function SettingsPage() {
                                 )}
                               </div>
                               <p className="mt-1.5 text-xs text-slate-500">
-                                Click "Get Token" to open OAuth Playground. After getting the refresh token, paste it above.
+                                Click &quot;Get Token&quot; to open OAuth Playground. After getting the refresh token, paste it above.
                               </p>
                             </div>
 
