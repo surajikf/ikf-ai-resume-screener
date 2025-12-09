@@ -1,3 +1,7 @@
+// Hardcoded credentials - available by default on Vercel and local
+// These can be overridden by database values
+// NOTE: For production, set these via Vercel environment variables
+// For local development, you can hardcode them here or use .env.local
 const DEFAULT_SETTINGS = {
   emailSignature: [
     "Best regards,",
@@ -6,18 +10,20 @@ const DEFAULT_SETTINGS = {
     "📞 +91 9665079317",
   ].join("\n"),
   emailSendingEnabled: false,
-  gmailEmail: "",
-  gmailAppPassword: "",
-  googleClientId: "",
-  googleClientSecret: "",
-  googleRefreshToken: "",
-  googleSenderEmail: "",
-  whatsappSendingEnabled: true, // Default enabled
-  whatsappApiKey: "",
+  // Email Gmail API Credentials - hardcoded, can be overridden via database
+  gmailEmail: process.env.GMAIL_EMAIL || "",
+  gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
+  googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+  googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || "",
+  googleSenderEmail: process.env.GOOGLE_SENDER_EMAIL || "",
+  // WhatsApp MyOperator API Credentials - hardcoded, can be overridden via database
+  whatsappSendingEnabled: true,
+  whatsappApiKey: process.env.WHATSAPP_API_KEY || "",
   whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
-  whatsappPhoneNumberId: "690875100784871", // Default Phone Number ID from MyOperator
-  whatsappCompanyId: "",
-  whatsappTemplateName: "resume_screener_message01", // Default template name
+  whatsappPhoneNumberId: "690875100784871", // Hardcoded default
+  whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "",
+  whatsappTemplateName: "resume_screener_message01", // Hardcoded default
   whatsappLanguage: "en",
 };
 

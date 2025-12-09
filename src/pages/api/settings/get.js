@@ -38,6 +38,7 @@ export default async function handler(req, res) {
     if (!result.success) {
       console.error('[settings/get] Query failed:', result.error);
       // Return defaults instead of error if database query fails
+      // Hardcoded credentials - available by default
       const DEFAULT_SETTINGS = {
         emailSignature: [
           "Best regards,",
@@ -46,17 +47,17 @@ export default async function handler(req, res) {
           "📞 +91 9665079317",
         ].join("\n"),
         emailSendingEnabled: false,
-        gmailEmail: "",
-        gmailAppPassword: "",
-        googleClientId: "",
-        googleClientSecret: "",
-        googleRefreshToken: "",
-        googleSenderEmail: "",
+        gmailEmail: process.env.GMAIL_EMAIL || "",
+        gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
+        googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+        googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+        googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || "",
+        googleSenderEmail: process.env.GOOGLE_SENDER_EMAIL || "",
         whatsappSendingEnabled: true,
-        whatsappApiKey: "",
+        whatsappApiKey: process.env.WHATSAPP_API_KEY || "",
         whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
         whatsappPhoneNumberId: "690875100784871",
-        whatsappCompanyId: "",
+        whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "",
         whatsappTemplateName: "resume_screener_message01",
         whatsappLanguage: "en",
       };
@@ -91,6 +92,7 @@ export default async function handler(req, res) {
 
     // If no settings exist or result.data is empty/undefined, initialize with defaults
     if (!result.data || !Array.isArray(result.data) || Object.keys(settings).length === 0) {
+      // Hardcoded credentials - available by default
       const DEFAULT_SETTINGS = {
         emailSignature: [
           "Best regards,",
@@ -99,17 +101,17 @@ export default async function handler(req, res) {
           "📞 +91 9665079317",
         ].join("\n"),
         emailSendingEnabled: false,
-        gmailEmail: "",
-        gmailAppPassword: "",
-        googleClientId: "",
-        googleClientSecret: "",
-        googleRefreshToken: "",
-        googleSenderEmail: "",
+        gmailEmail: process.env.GMAIL_EMAIL || "",
+        gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
+        googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+        googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+        googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || "",
+        googleSenderEmail: process.env.GOOGLE_SENDER_EMAIL || "",
         whatsappSendingEnabled: true,
-        whatsappApiKey: "",
+        whatsappApiKey: process.env.WHATSAPP_API_KEY || "",
         whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
         whatsappPhoneNumberId: "690875100784871",
-        whatsappCompanyId: "",
+        whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "",
         whatsappTemplateName: "resume_screener_message01",
         whatsappLanguage: "en",
       };

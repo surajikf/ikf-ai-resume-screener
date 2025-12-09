@@ -374,20 +374,25 @@ export default function SettingsPage() {
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           <FaLock className="inline mr-1 text-slate-400" />
-                          API Key *
+                          API Key * <span className="text-xs text-slate-500 font-normal">(Pre-configured, editable)</span>
                         </label>
                         <input
                           type="password"
                           value={whatsappApiKey}
                           onChange={(e) => setWhatsappApiKey(e.target.value)}
                           className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 transition"
-                          placeholder="Your MyOperator API Key"
+                          placeholder="Hardcoded API Key (edit to override)"
                         />
+                        {whatsappApiKey && (
+                          <p className="mt-1 text-xs text-green-600">
+                            ✓ Configured {whatsappApiKey.length > 0 ? `(${whatsappApiKey.length} characters)` : ''}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           <FaPhone className="inline mr-1 text-slate-400" />
-                          Phone Number ID *
+                          Phone Number ID * <span className="text-xs text-slate-500 font-normal">(Pre-configured)</span>
                         </label>
                         <input
                           type="text"
@@ -396,20 +401,25 @@ export default function SettingsPage() {
                           className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 transition"
                           placeholder="690875100784871"
                         />
-                        <p className="mt-1 text-xs text-slate-500">From MyOperator dashboard</p>
+                        <p className="mt-1 text-xs text-slate-500">From MyOperator dashboard (hardcoded default)</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           <FaGlobe className="inline mr-1 text-slate-400" />
-                          Company ID *
+                          Company ID * <span className="text-xs text-slate-500 font-normal">(Pre-configured, editable)</span>
                         </label>
                         <input
                           type="text"
                           value={whatsappCompanyId}
                           onChange={(e) => setWhatsappCompanyId(e.target.value)}
                           className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none focus:border-green-500 focus:bg-white focus:ring-2 focus:ring-green-100 transition"
-                          placeholder="Your Company ID"
+                          placeholder="Hardcoded Company ID (edit to override)"
                         />
+                        {whatsappCompanyId && (
+                          <p className="mt-1 text-xs text-green-600">
+                            ✓ Configured
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
