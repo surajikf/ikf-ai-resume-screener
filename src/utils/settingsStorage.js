@@ -140,14 +140,42 @@ export const saveSettings = async (partialSettings) => {
     });
     
     if (response.ok) {
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError);
+        const text = await response.text();
+        console.error('Response text:', text);
+        return; // Exit early if we can't parse
+      }
+      
       if (result.success) {
-        console.log('Settings saved to database successfully');
+        console.log('Settings saved to database successfully', {
+          savedCount: result.results?.filter(r => r.success).length || 0,
+          totalCount: result.results?.length || 0,
+        });
       } else {
-        console.error('Database save failed:', result.error);
+        // Handle different error formats from API
+        const errorMsg = result.error || result.errors?.join('; ') || result.details || result.message || 'Unknown error';
+        console.error('Database save failed:', errorMsg);
+        if (result.results) {
+          const failedResults = result.results.filter(r => !r.success);
+          if (failedResults.length > 0) {
+            console.error('Failed settings:', failedResults);
+          }
+        }
       }
     } else {
-      console.error('Database save failed with status:', response.status);
+      // Try to get error message from response
+      let errorMsg = `HTTP ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMsg = errorData.error || errorData.details || errorData.message || errorMsg;
+      } catch {
+        errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+      }
+      console.error('Database save failed with status:', errorMsg);
     }
   } catch (err) {
     console.error('Database save error:', err);

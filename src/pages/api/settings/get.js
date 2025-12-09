@@ -33,6 +33,15 @@ export default async function handler(req, res) {
       params.push(...keyArray);
     }
 
+    // Also explicitly check for API Key and Company ID
+    const apiKeyCheck = await query('SELECT setting_key, setting_value FROM settings WHERE setting_key IN (?, ?)', ['whatsappApiKey', 'whatsappCompanyId']);
+    console.log('[settings/get] Direct API Key/Company ID query:', {
+      success: apiKeyCheck.success,
+      data: apiKeyCheck.data,
+      apiKeyFound: apiKeyCheck.data?.find(r => r.setting_key === 'whatsappApiKey'),
+      companyIdFound: apiKeyCheck.data?.find(r => r.setting_key === 'whatsappCompanyId'),
+    });
+
     const result = await query(sql, params);
 
     if (!result.success) {
@@ -84,8 +93,13 @@ export default async function handler(req, res) {
       // Debug: Log what we found in database for API Key and Company ID
       console.log('[settings/get] Raw database values:', {
         whatsappApiKey: settings.whatsappApiKey ? `***${settings.whatsappApiKey.slice(-4)} (${settings.whatsappApiKey.length} chars)` : 'not found',
+        whatsappApiKeyRaw: settings.whatsappApiKey || 'null/undefined/empty',
+        whatsappApiKeyType: typeof settings.whatsappApiKey,
         whatsappCompanyId: settings.whatsappCompanyId ? `***${settings.whatsappCompanyId.slice(-4)} (${settings.whatsappCompanyId.length} chars)` : 'not found',
+        whatsappCompanyIdRaw: settings.whatsappCompanyId || 'null/undefined/empty',
+        whatsappCompanyIdType: typeof settings.whatsappCompanyId,
         allSettingKeys: Object.keys(settings),
+        allSettingsRaw: settings,
       });
     }
     
@@ -115,10 +129,21 @@ export default async function handler(req, res) {
     
     // Merge: Start with defaults (includes env vars), then override with database values
     // Priority: Non-empty DB values > Env vars > Hardcoded defaults
+    // IMPORTANT: Database values take highest priority - if saved locally, they will load on Vercel
     const mergedSettings = { ...DEFAULT_SETTINGS };
     for (const [key, dbValue] of Object.entries(settings)) {
       // Use database value if it exists and is non-empty (user saved a value)
-      if (dbValue !== null && dbValue !== undefined && dbValue !== "") {
+      // This ensures API Key and Company ID saved locally will load on Vercel
+      // Special handling for API Key and Company ID - they should always use DB value if present
+      if (key === 'whatsappApiKey' || key === 'whatsappCompanyId') {
+        // For API Key and Company ID, use DB value if it exists (even if empty string means user cleared it)
+        if (dbValue !== null && dbValue !== undefined) {
+          mergedSettings[key] = dbValue; // Use DB value even if empty (user explicitly cleared it)
+          console.log(`[settings/get] Using DB value for ${key}:`, dbValue ? `***${String(dbValue).slice(-4)} (${String(dbValue).length} chars)` : 'empty string');
+        } else {
+          console.log(`[settings/get] ${key} not in DB, using default/env`);
+        }
+      } else if (dbValue !== null && dbValue !== undefined && dbValue !== "") {
         mergedSettings[key] = dbValue;
       }
       // If database has empty string, check if env var exists for credentials
@@ -202,18 +227,32 @@ export default async function handler(req, res) {
     }
 
     // Return merged settings (database values + env vars/defaults)
+    // Also include raw database values for debugging
+    const rawDbValues = {
+      whatsappApiKey: settings.whatsappApiKey !== undefined ? settings.whatsappApiKey : null,
+      whatsappCompanyId: settings.whatsappCompanyId !== undefined ? settings.whatsappCompanyId : null,
+    };
+    
     console.log('[settings/get] Final merged settings being returned:', {
       hasApiKey: !!mergedSettings.whatsappApiKey && mergedSettings.whatsappApiKey !== "",
       hasCompanyId: !!mergedSettings.whatsappCompanyId && mergedSettings.whatsappCompanyId !== "",
       apiKeyLength: mergedSettings.whatsappApiKey?.length || 0,
       companyIdLength: mergedSettings.whatsappCompanyId?.length || 0,
-      apiKeySource: settings.whatsappApiKey && settings.whatsappApiKey !== "" ? 'database' : (process.env.WHATSAPP_API_KEY ? 'env' : 'default'),
-      companyIdSource: settings.whatsappCompanyId && settings.whatsappCompanyId !== "" ? 'database' : (process.env.WHATSAPP_COMPANY_ID ? 'env' : 'default'),
+      apiKeySource: settings.whatsappApiKey !== undefined && settings.whatsappApiKey !== "" ? 'database' : (process.env.WHATSAPP_API_KEY ? 'env' : 'default'),
+      companyIdSource: settings.whatsappCompanyId !== undefined && settings.whatsappCompanyId !== "" ? 'database' : (process.env.WHATSAPP_COMPANY_ID ? 'env' : 'default'),
+      rawDbApiKey: rawDbValues.whatsappApiKey !== null ? (rawDbValues.whatsappApiKey ? `***${String(rawDbValues.whatsappApiKey).slice(-4)}` : 'empty string') : 'not in DB',
+      rawDbCompanyId: rawDbValues.whatsappCompanyId !== null ? (rawDbValues.whatsappCompanyId ? `***${String(rawDbValues.whatsappCompanyId).slice(-4)}` : 'empty string') : 'not in DB',
     });
     
     return res.status(200).json({
       success: true,
       data: mergedSettings,
+      // Always include raw database values so frontend can prioritize them
+      _rawDb: {
+        whatsappApiKey: settings.whatsappApiKey !== undefined ? settings.whatsappApiKey : null,
+        whatsappCompanyId: settings.whatsappCompanyId !== undefined ? settings.whatsappCompanyId : null,
+        allSettings: settings, // Include all raw DB settings
+      },
     });
   } catch (error) {
     console.error('Error fetching settings:', error);

@@ -3,7 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import { getSettings, saveSettings, getSettingsFromDatabase } from "@/utils/settingsStorage";
-import { FaEnvelope, FaSignature, FaCheckCircle, FaInfoCircle, FaLock, FaArrowLeft, FaWhatsapp, FaPhone, FaGlobe, FaSave } from "react-icons/fa";
+import { FaEnvelope, FaSignature, FaCheckCircle, FaInfoCircle, FaLock, FaArrowLeft, FaWhatsapp, FaPhone, FaGlobe, FaSave, FaSync } from "react-icons/fa";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [whatsappLanguage, setWhatsappLanguage] = useState("en");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false); // For fetching from database
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false); // Start disabled until settings are loaded
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [loadedFromDb, setLoadedFromDb] = useState(false); // Track if settings were loaded from database
@@ -49,18 +50,22 @@ export default function SettingsPage() {
       const hasDbSettings = dbSettings && Object.keys(dbSettings).length > 0;
       setLoadedFromDb(hasDbSettings);
       
+      // Check if API Key and Company ID are specifically from database
+      const apiKeyInDb = dbSettings?.whatsappApiKey && dbSettings.whatsappApiKey !== "";
+      const companyIdInDb = dbSettings?.whatsappCompanyId && dbSettings.whatsappCompanyId !== "";
+      
       console.log('[Settings] Loaded from database:', {
         hasDbSettings: !!dbSettings,
         loadedFromDb: hasDbSettings,
-        hasApiKey: !!current.whatsappApiKey,
-        hasCompanyId: !!current.whatsappCompanyId,
+        apiKeyInDb: apiKeyInDb,
+        apiKeyFromDb: apiKeyInDb ? '***' + dbSettings.whatsappApiKey.slice(-4) : 'not in DB',
+        apiKeyLength: dbSettings?.whatsappApiKey?.length || 0,
+        companyIdInDb: companyIdInDb,
+        companyIdFromDb: companyIdInDb ? '***' + dbSettings.whatsappCompanyId.slice(-4) : 'not in DB',
+        companyIdLength: dbSettings?.whatsappCompanyId?.length || 0,
         hasGmailEmail: !!current.gmailEmail,
         hasGmailPassword: !!current.gmailAppPassword,
-        apiKeyLength: current.whatsappApiKey?.length || 0,
-        companyIdLength: current.whatsappCompanyId?.length || 0,
-        apiKeyValue: current.whatsappApiKey ? '***' + current.whatsappApiKey.slice(-4) : 'empty',
-        companyIdValue: current.whatsappCompanyId ? '***' + current.whatsappCompanyId.slice(-4) : 'empty',
-        allKeys: Object.keys(current),
+        allDbKeys: dbSettings ? Object.keys(dbSettings) : [],
       });
       
       setEmailSignature(current.emailSignature || defaults.emailSignature || "");
@@ -74,10 +79,16 @@ export default function SettingsPage() {
       setWhatsappSendingEnabled(current.whatsappSendingEnabled !== undefined ? current.whatsappSendingEnabled : defaults.whatsappSendingEnabled);
       // Load from database first (if it has a value), then fallback to defaults/env vars
       // Use database value if it exists and is non-empty, otherwise use default/env var
+      // Explicitly prioritize database values for API Key and Company ID
+      const initialApiKeyFromDb = dbSettings?.whatsappApiKey;
+      const initialCompanyIdFromDb = dbSettings?.whatsappCompanyId;
+      
       setWhatsappApiKey(
-        current.whatsappApiKey && current.whatsappApiKey !== "" 
-          ? current.whatsappApiKey 
-          : (defaults.whatsappApiKey || "")
+        initialApiKeyFromDb && initialApiKeyFromDb !== "" 
+          ? initialApiKeyFromDb 
+          : (current.whatsappApiKey && current.whatsappApiKey !== "" 
+              ? current.whatsappApiKey 
+              : (defaults.whatsappApiKey || ""))
       );
       setWhatsappApiUrl(
         current.whatsappApiUrl && current.whatsappApiUrl !== "" 
@@ -90,9 +101,11 @@ export default function SettingsPage() {
           : (defaults.whatsappPhoneNumberId || "690875100784871")
       );
       setWhatsappCompanyId(
-        current.whatsappCompanyId && current.whatsappCompanyId !== "" 
-          ? current.whatsappCompanyId 
-          : (defaults.whatsappCompanyId || "")
+        initialCompanyIdFromDb && initialCompanyIdFromDb !== "" 
+          ? initialCompanyIdFromDb 
+          : (current.whatsappCompanyId && current.whatsappCompanyId !== "" 
+              ? current.whatsappCompanyId 
+              : (defaults.whatsappCompanyId || ""))
       );
       setWhatsappTemplateName(
         current.whatsappTemplateName && current.whatsappTemplateName !== "" 
@@ -205,6 +218,89 @@ export default function SettingsPage() {
     setTimeout(() => setAutoSaveEnabled(true), 3000);
   };
 
+  const handleFetchFromDatabase = async () => {
+    setLoading(true);
+    setAutoSaveEnabled(false); // Disable auto-save while fetching
+    
+    try {
+      // Directly call the API to get settings with debug info
+      const response = await fetch('/api/settings/get');
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const mergedSettings = data.data || {};
+      const rawDb = data._rawDb || {};
+      const allDbSettings = rawDb.allSettings || {};
+      
+      // Use raw database values if available, otherwise use merged settings
+      const defaults = getSettings();
+      
+      // Check if we have database settings
+      const hasDbSettings = allDbSettings && Object.keys(allDbSettings).length > 0;
+      setLoadedFromDb(hasDbSettings);
+      
+      // For API Key and Company ID, prioritize raw database values
+      // Use _rawDb values first, then check allDbSettings, then merged
+      const apiKeyFromDb = rawDb.whatsappApiKey !== undefined ? rawDb.whatsappApiKey : (allDbSettings?.whatsappApiKey !== undefined ? allDbSettings.whatsappApiKey : null);
+      const companyIdFromDb = rawDb.whatsappCompanyId !== undefined ? rawDb.whatsappCompanyId : (allDbSettings?.whatsappCompanyId !== undefined ? allDbSettings.whatsappCompanyId : null);
+      
+      // Update all state with database values
+      setEmailSignature(mergedSettings.emailSignature || defaults.emailSignature || "");
+      setEmailSendingEnabled(mergedSettings.emailSendingEnabled !== undefined ? mergedSettings.emailSendingEnabled : defaults.emailSendingEnabled);
+      setGmailEmail(mergedSettings.gmailEmail || "");
+      setGmailAppPassword(mergedSettings.gmailAppPassword || "");
+      setGoogleClientId(mergedSettings.googleClientId || "");
+      setGoogleClientSecret(mergedSettings.googleClientSecret || "");
+      setGoogleRefreshToken(mergedSettings.googleRefreshToken || "");
+      setGoogleSenderEmail(mergedSettings.googleSenderEmail || "");
+      setWhatsappSendingEnabled(mergedSettings.whatsappSendingEnabled !== undefined ? mergedSettings.whatsappSendingEnabled : defaults.whatsappSendingEnabled);
+      
+      // Use raw database values for API Key and Company ID if they exist in DB
+      // Even if they're empty strings, use them (user explicitly cleared them)
+      setWhatsappApiKey(
+        apiKeyFromDb !== null && apiKeyFromDb !== undefined
+          ? apiKeyFromDb 
+          : (mergedSettings.whatsappApiKey || defaults.whatsappApiKey || "")
+      );
+      setWhatsappApiUrl(mergedSettings.whatsappApiUrl || defaults.whatsappApiUrl || "https://publicapi.myoperator.co/chat/messages");
+      setWhatsappPhoneNumberId(mergedSettings.whatsappPhoneNumberId || defaults.whatsappPhoneNumberId || "690875100784871");
+      setWhatsappCompanyId(
+        companyIdFromDb !== null && companyIdFromDb !== undefined
+          ? companyIdFromDb 
+          : (mergedSettings.whatsappCompanyId || defaults.whatsappCompanyId || "")
+      );
+      setWhatsappTemplateName(mergedSettings.whatsappTemplateName || defaults.whatsappTemplateName || "resume_screener_message01");
+      setWhatsappLanguage(mergedSettings.whatsappLanguage || defaults.whatsappLanguage || "en");
+      
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        setLoading(false);
+        setAutoSaveEnabled(true);
+      }, 2000);
+      
+      // Log detailed information about what was fetched
+      console.log('[Settings] Fetched from database:', {
+        hasDbSettings: hasDbSettings,
+        apiKeyFromDb: apiKeyFromDb !== null && apiKeyFromDb !== undefined,
+        apiKeyValue: apiKeyFromDb !== null && apiKeyFromDb !== undefined ? (apiKeyFromDb ? '***' + String(apiKeyFromDb).slice(-4) : 'empty string') : 'not in DB',
+        apiKeyLength: apiKeyFromDb ? String(apiKeyFromDb).length : 0,
+        companyIdFromDb: companyIdFromDb !== null && companyIdFromDb !== undefined,
+        companyIdValue: companyIdFromDb !== null && companyIdFromDb !== undefined ? (companyIdFromDb ? '***' + String(companyIdFromDb).slice(-4) : 'empty string') : 'not in DB',
+        companyIdLength: companyIdFromDb ? String(companyIdFromDb).length : 0,
+        rawDbApiKey: rawDb.whatsappApiKey,
+        rawDbCompanyId: rawDb.whatsappCompanyId,
+        allDbSettingsKeys: Object.keys(allDbSettings),
+      });
+    } catch (err) {
+      console.error('Failed to fetch settings from database:', err);
+      setLoading(false);
+      setAutoSaveEnabled(true);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -227,20 +323,31 @@ export default function SettingsPage() {
                   <p className="text-sm text-slate-600 mt-1">Configure email and WhatsApp messaging</p>
                 </div>
               </div>
-              <button
-                onClick={handleManualSave}
-                disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <FaSave className="text-xs" />
-                {saving ? "Saving..." : "Save Now"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleFetchFromDatabase}
+                  disabled={loading || saving}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Fetch all credentials from database"
+                >
+                  <FaSync className={`text-xs ${loading ? 'animate-spin' : ''}`} />
+                  {loading ? "Loading..." : "Fetch from DB"}
+                </button>
+                <button
+                  onClick={handleManualSave}
+                  disabled={saving || loading}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FaSave className="text-xs" />
+                  {saving ? "Saving..." : "Save Now"}
+                </button>
+              </div>
             </div>
             
             {saved && (
               <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
                 <FaCheckCircle />
-                <span>Settings saved successfully to database!</span>
+                <span>{loading ? "Credentials fetched from database successfully!" : "Settings saved successfully to database!"}</span>
               </div>
             )}
             
@@ -425,7 +532,7 @@ export default function SettingsPage() {
                         <div>
                         <label className="block text-xs font-medium text-slate-700 mb-1">
                           <FaLock className="inline mr-1 text-slate-400 text-xs" />
-                          API Key * <span className="text-xs text-slate-500 font-normal">(From DB/Env)</span>
+                          API Key * <span className="text-xs text-slate-500 font-normal">(Saved to DB - Auto-loads on Vercel)</span>
                           </label>
                           <input
                             type="password"
@@ -436,7 +543,7 @@ export default function SettingsPage() {
                         />
                         {whatsappApiKey && (
                           <p className="mt-0.5 text-xs text-green-600">
-                            ✓ {whatsappApiKey.length} chars
+                            ✓ {whatsappApiKey.length} chars {loadedFromDb && whatsappApiKey && <span className="text-blue-600">(Loaded from DB)</span>}
                           </p>
                         )}
                         </div>
@@ -456,7 +563,7 @@ export default function SettingsPage() {
                         <div>
                         <label className="block text-xs font-medium text-slate-700 mb-1">
                           <FaGlobe className="inline mr-1 text-slate-400 text-xs" />
-                          Company ID * <span className="text-xs text-slate-500 font-normal">(From DB/Env)</span>
+                          Company ID * <span className="text-xs text-slate-500 font-normal">(Saved to DB - Auto-loads on Vercel)</span>
                           </label>
                           <input
                             type="text"
@@ -467,7 +574,7 @@ export default function SettingsPage() {
                         />
                         {whatsappCompanyId && (
                           <p className="mt-0.5 text-xs text-green-600">
-                            ✓ Configured
+                            ✓ Configured {loadedFromDb && whatsappCompanyId && <span className="text-blue-600">(Loaded from DB)</span>}
                           </p>
                         )}
                       </div>

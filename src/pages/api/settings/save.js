@@ -1,4 +1,4 @@
-import { query } from '@/lib/db';
+import { query, getConnection } from '@/lib/db';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -29,45 +29,100 @@ export default async function handler(req, res) {
       return res.status(400).json({
         success: false,
         error: 'Invalid settings data',
+        message: 'Settings data is missing or invalid',
       });
     }
 
-    // Save each setting
+    console.log('[settings/save] Saving settings:', {
+      keysCount: Object.keys(settings).length,
+      keys: Object.keys(settings),
+      hasApiKey: !!settings.whatsappApiKey,
+      hasCompanyId: !!settings.whatsappCompanyId,
+    });
+
+    // Use a single connection to save all settings in a transaction
+    // This prevents "too many connections" errors
+    let connection = null;
     const results = [];
     let allSuccess = true;
+    const errors = [];
     
-    for (const [key, value] of Object.entries(settings)) {
-      try {
-        const result = await query(
-          `INSERT INTO settings (setting_key, setting_value) 
-           VALUES (?, ?) 
-           ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()`,
-          [key, JSON.stringify(value), JSON.stringify(value)]
-        );
-        results.push({ key, success: result.success });
-        if (!result.success) {
+    try {
+      // Get a single connection for all operations
+      connection = await getConnection();
+      
+      // Start transaction
+      await connection.beginTransaction();
+      
+      // Prepare all settings for batch insert
+      const settingsEntries = Object.entries(settings);
+      
+      // Use a single query with multiple VALUES or execute sequentially in same connection
+      for (const [key, value] of settingsEntries) {
+        try {
+          await connection.execute(
+            `INSERT INTO settings (setting_key, setting_value) 
+             VALUES (?, ?) 
+             ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()`,
+            [key, JSON.stringify(value), JSON.stringify(value)]
+          );
+          results.push({ key, success: true });
+        } catch (err) {
           allSuccess = false;
-          console.error(`Failed to save setting ${key}:`, result.error);
+          const errorMsg = err.message || 'Unknown error';
+          console.error(`Failed to save setting ${key}:`, errorMsg);
+          errors.push(`${key}: ${errorMsg}`);
+          results.push({ key, success: false, error: errorMsg });
         }
-      } catch (err) {
-        allSuccess = false;
-        console.error(`Error saving setting ${key}:`, err);
-        results.push({ key, success: false, error: err.message });
+      }
+      
+      // Commit transaction if all succeeded, otherwise rollback
+      if (allSuccess) {
+        await connection.commit();
+        console.log('[settings/save] All settings saved successfully');
+      } else {
+        await connection.rollback();
+        console.error('[settings/save] Transaction rolled back due to errors');
+      }
+      
+    } catch (err) {
+      // Rollback on any error
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackErr) {
+          console.error('[settings/save] Rollback error:', rollbackErr);
+        }
+      }
+      allSuccess = false;
+      const errorMsg = err.message || 'Unknown error';
+      console.error('[settings/save] Transaction error:', err);
+      errors.push(`Transaction failed: ${errorMsg}`);
+    } finally {
+      // Always release the connection
+      if (connection) {
+        try {
+          connection.release();
+        } catch (releaseErr) {
+          console.error('[settings/save] Error releasing connection:', releaseErr);
+        }
       }
     }
 
     return res.status(200).json({
       success: allSuccess,
       message: allSuccess ? 'Settings saved to database' : 'Some settings failed to save',
+      error: errors.length > 0 ? errors.join('; ') : undefined,
+      errors: errors.length > 0 ? errors : undefined,
       results,
     });
   } catch (error) {
-    console.error('Error saving settings:', error);
+    console.error('[settings/save] Error saving settings:', error);
     // Return 200 with error instead of 500 - app can still function
     return res.status(200).json({
       success: false,
-      error: 'Failed to save settings',
-      details: error.message,
+      error: error.message || 'Failed to save settings',
+      details: error.message || 'Unknown error occurred',
       message: 'Settings may not have been saved, but app will continue to work',
     });
   }
