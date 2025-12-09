@@ -298,7 +298,38 @@ export default async function handler(req, res) {
       ? files.resume[0]
       : files?.resume;
 
+    if (!resumeFile) {
+      res.status(400).json({ error: "Resume file is required." });
+      return;
+    }
+
     const resumeText = await extractTextFromUpload(resumeFile);
+    
+    // Read resume file content for database storage
+    let resumeFileContent = null;
+    let resumeFileName = resumeFile.originalFilename || resumeFile.newFilename || 'resume.pdf';
+    let resumeFileType = null;
+    let resumeFileSize = null;
+    
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      resumeFileContent = await fs.promises.readFile(resumeFile.filepath);
+      resumeFileSize = resumeFile.size || resumeFileContent.length;
+      
+      // Determine file type from extension
+      const ext = path.extname(resumeFileName).toLowerCase();
+      const mimeTypes = {
+        '.pdf': 'application/pdf',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.doc': 'application/msword',
+        '.txt': 'text/plain',
+      };
+      resumeFileType = mimeTypes[ext] || 'application/pdf';
+    } catch (fileError) {
+      console.log('Could not read resume file for storage:', fileError);
+      // Continue without saving file - evaluation can still proceed
+    }
 
     const candidateDetailsBlock = Object.entries(candidateDetails)
       .filter(([, value]) => value)
@@ -340,6 +371,12 @@ export default async function handler(req, res) {
     const metadata = {
       jobDescriptionTitle: jobDescription.split("\n")[0]?.trim() || "",
       jdLink,
+      resumeFile: resumeFileContent ? {
+        fileName: resumeFileName,
+        fileType: resumeFileType,
+        fileSize: resumeFileSize,
+        fileContent: resumeFileContent.toString('base64'), // Convert to base64 for JSON transmission
+      } : null,
     };
 
     // Note: Database save is handled in the frontend after evaluation completes

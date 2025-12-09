@@ -47,27 +47,36 @@ export default async function handler(req, res) {
   try {
     // Try Gmail SMTP first (simpler - uses email + app password)
     if (gmailEmail && gmailAppPassword) {
+      // Remove spaces from app password (Gmail app passwords are 16 characters, no spaces)
+      const cleanAppPassword = gmailAppPassword.replace(/\s+/g, '');
+      
+      if (cleanAppPassword.length !== 16) {
+        throw new Error("Gmail App Password must be 16 characters. Please check your app password in Settings.");
+      }
+
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: gmailEmail,
-          pass: gmailAppPassword, // This should be an App Password, not regular password
+          user: gmailEmail.trim(),
+          pass: cleanAppPassword, // This should be an App Password, not regular password
         },
       });
 
       const mailOptions = {
-        from: gmailEmail,
-        to: to,
+        from: gmailEmail.trim(),
+        to: to.trim(),
         subject: subject,
         text: body,
+        html: body.replace(/\n/g, '<br>'), // Also send as HTML for better formatting
       };
 
       const info = await transporter.sendMail(mailOptions);
       messageId = info.messageId;
-      console.log("[send-email] Email sent via SMTP:", {
+      console.log("[send-email] Email sent via Gmail SMTP:", {
         to,
         subject,
         messageId: info.messageId,
+        from: gmailEmail,
       });
       emailStatus = "sent";
     }

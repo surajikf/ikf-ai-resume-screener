@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { FaTimes, FaRegEnvelope, FaCopy, FaChartLine, FaMapMarkerAlt, FaPaperPlane, FaWhatsapp } from "react-icons/fa";
-import { getSettings } from "@/utils/settingsStorage";
+import { getSettings, getSettingsFromDatabase } from "@/utils/settingsStorage";
 
 const buildEmailBodyWithSignature = (body, signature) => {
   const baseBody = body || "";
@@ -176,18 +176,78 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail, can
       return;
     }
 
+    // Validate and clean phone number format before sending
+    let phoneTrimmed = toWhatsApp.trim();
+    
+    // Remove all non-digit characters except + at the start
+    const hasPlus = phoneTrimmed.startsWith("+");
+    let digitsOnly = phoneTrimmed.replace(/\D/g, "");
+    
+    // If it had + and starts with 91, keep it as +91 format
+    if (hasPlus && digitsOnly.startsWith("91") && digitsOnly.length === 12) {
+      phoneTrimmed = "+" + digitsOnly;
+    } else if (digitsOnly.startsWith("91") && digitsOnly.length === 12) {
+      // 12 digits starting with 91, use as is
+      phoneTrimmed = digitsOnly;
+    } else if (digitsOnly.length === 10) {
+      // Exactly 10 digits, use as is
+      phoneTrimmed = digitsOnly;
+    } else if (digitsOnly.length === 11 && digitsOnly.startsWith("0")) {
+      // 11 digits starting with 0, remove the 0
+      phoneTrimmed = digitsOnly.substring(1);
+    } else {
+      // Try to extract last 10 digits
+      if (digitsOnly.length > 10) {
+        phoneTrimmed = digitsOnly.slice(-10);
+      } else {
+        phoneTrimmed = digitsOnly;
+      }
+    }
+    
+    // Final validation
+    const finalDigits = phoneTrimmed.replace(/\D/g, "");
+    if (!finalDigits || finalDigits.length < 10) {
+      setSendStatus("Please enter a valid 10-digit phone number (e.g., 9272850850) or with country code (+919272850850)");
+      setTimeout(() => setSendStatus(""), 4000);
+      return;
+    }
+
     setSending(true);
     setSendStatus("");
 
     try {
-      const settings = getSettings();
+      // Get settings - try database first, fallback to cached/localStorage
+      let settings = getSettings();
+      
+      // Try to get fresh settings from database
+      try {
+        const dbSettings = await getSettingsFromDatabase();
+        if (dbSettings) {
+          settings = dbSettings;
+        }
+      } catch (err) {
+        // Use cached settings if database fetch fails
+        console.log('Using cached settings:', err);
+      }
+      
+      console.log('[EvaluationModal] Sending WhatsApp to:', phoneTrimmed, 'Original:', toWhatsApp);
+      console.log('[EvaluationModal] Settings check:', {
+        whatsappSendingEnabled: settings.whatsappSendingEnabled,
+        hasApiKey: !!settings.whatsappApiKey,
+        hasPhoneNumberId: !!settings.whatsappPhoneNumberId,
+        hasCompanyId: !!settings.whatsappCompanyId,
+        hasTemplateName: !!settings.whatsappTemplateName,
+        hasMessage: !!whatsappMessage,
+        messageLength: whatsappMessage?.length
+      });
+      
       const response = await fetch("/api/send-whatsapp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          to: toWhatsApp,
+          to: String(phoneTrimmed), // Ensure it's always a string
           message: whatsappMessage,
           candidateName: candidate?.candidateName || "Candidate",
           evaluationId: candidate?.id || candidate?.databaseId || null,
@@ -201,13 +261,60 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail, can
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || "Failed to send WhatsApp message");
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        const text = await response.text();
+        console.error('[EvaluationModal] Failed to parse response as JSON:', {
+          status: response.status,
+          statusText: response.statusText,
+          responseText: text,
+          error: jsonError
+        });
+        throw new Error(`Server error (${response.status}): ${text.substring(0, 200)}`);
       }
 
-      setSendStatus(`WhatsApp message sent successfully to ${toWhatsApp}`);
+      if (!response.ok) {
+        // Log full error details for debugging
+        console.error('[EvaluationModal] WhatsApp send error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: data.error,
+          message: data.message,
+          details: data.details,
+          missing: data.missing,
+          requestDetails: data.requestDetails,
+          fullResponse: JSON.stringify(data, null, 2)
+        });
+        
+        // Also log the details object expanded
+        if (data.details) {
+          console.error('[EvaluationModal] Error details expanded:', data.details);
+          if (data.details.errors) {
+            console.error('[EvaluationModal] MyOperator errors object:', JSON.stringify(data.details.errors, null, 2));
+            // Try to extract specific field errors
+            if (typeof data.details.errors === 'object' && !Array.isArray(data.details.errors)) {
+              Object.entries(data.details.errors).forEach(([field, error]) => {
+                console.error(`[EvaluationModal] Field error - ${field}:`, error);
+              });
+            }
+          }
+          if (data.details.code) {
+            console.error('[EvaluationModal] MyOperator error code:', data.details.code, '- This is a validation error from MyOperator API');
+          }
+        }
+        
+        // Provide more user-friendly error messages
+        const errorMsg = data.error || data.message || "Failed to send WhatsApp message";
+        if (errorMsg.includes("Invalid phone number") || errorMsg.includes("Invalid input")) {
+          throw new Error(`Invalid phone number format. Please enter a 10-digit number (e.g., 9272850850) or with country code (+919272850850)`);
+        }
+        // Show the actual error message from the server
+        throw new Error(errorMsg);
+      }
+
+      setSendStatus(`WhatsApp message sent successfully to ${phoneTrimmed}`);
       setTimeout(() => {
         setSendStatus("");
         setToWhatsApp("");
@@ -238,7 +345,30 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail, can
     setSendStatus("");
 
     try {
-      const settings = getSettings();
+      // Get settings - try database first, fallback to cached/localStorage
+      let settings = getSettings();
+      
+      // Try to get fresh settings from database
+      try {
+        const dbSettings = await getSettingsFromDatabase();
+        if (dbSettings) {
+          settings = dbSettings;
+        }
+      } catch (err) {
+        // Use cached settings if database fetch fails
+        console.log('Using cached settings:', err);
+      }
+      
+      // Validate that we have email credentials
+      if (!settings.gmailEmail || !settings.gmailAppPassword) {
+        if (!settings.googleClientId || !settings.googleClientSecret || !settings.googleRefreshToken || !settings.googleSenderEmail) {
+          setSendStatus("Missing email credentials. Please configure Gmail email + App Password in Settings.");
+          setTimeout(() => setSendStatus(""), 5000);
+          setSending(false);
+          return;
+        }
+      }
+      
       const response = await fetch("/api/send-email", {
         method: "POST",
         headers: {
@@ -250,6 +380,8 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail, can
           body,
           evaluationId: candidate?.id || candidate?.databaseId || null,
           emailSendingEnabled: settings.emailSendingEnabled,
+          gmailEmail: settings.gmailEmail,
+          gmailAppPassword: settings.gmailAppPassword,
           googleClientId: settings.googleClientId,
           googleClientSecret: settings.googleClientSecret,
           googleRefreshToken: settings.googleRefreshToken,

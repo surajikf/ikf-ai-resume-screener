@@ -8,13 +8,37 @@ export default async function handler(req, res) {
   try {
     const { limit = 50, offset = 0, verdict, search } = req.query;
 
+    // Optimized query with better index usage
     let sql = `
       SELECT 
-        e.*,
+        e.id,
+        e.candidate_id,
+        e.job_description_id,
+        e.role_applied,
+        e.company_location,
+        e.experience_ctc_notice_location,
+        e.work_experience,
+        e.verdict,
+        e.match_score,
+        e.score_breakdown,
+        e.key_strengths,
+        e.gaps,
+        e.education_gaps,
+        e.experience_gaps,
+        e.better_suited_focus,
+        e.email_draft,
+        e.whatsapp_draft,
+        e.created_at,
+        e.updated_at,
         c.candidate_name,
         c.candidate_email,
         c.candidate_whatsapp,
         c.candidate_location,
+        c.linkedin_url,
+        c.current_designation,
+        c.current_company,
+        c.total_experience_years,
+        c.number_of_companies,
         jd.title as job_title
       FROM evaluations e
       INNER JOIN candidates c ON e.candidate_id = c.id
@@ -46,13 +70,20 @@ export default async function handler(req, res) {
       });
     }
 
-    // Parse JSON fields
+    // Parse JSON fields and include candidate profile data
     const evaluations = result.data.map(evaluation => ({
       id: evaluation.id,
+      databaseId: evaluation.id,
+      candidateId: evaluation.candidate_id,
       candidateName: evaluation.candidate_name,
       candidateEmail: evaluation.candidate_email,
       candidateWhatsApp: evaluation.candidate_whatsapp,
       candidateLocation: evaluation.candidate_location,
+      linkedInUrl: evaluation.linkedin_url || '',
+      currentDesignation: evaluation.current_designation || null,
+      currentCompany: evaluation.current_company || null,
+      totalExperienceYears: evaluation.total_experience_years || null,
+      numberOfCompanies: evaluation.number_of_companies || null,
       roleApplied: evaluation.role_applied,
       companyLocation: evaluation.company_location,
       experience: evaluation.experience_ctc_notice_location,
@@ -68,6 +99,7 @@ export default async function handler(req, res) {
       emailDraft: JSON.parse(evaluation.email_draft || '{}'),
       whatsappDraft: JSON.parse(evaluation.whatsapp_draft || '{}'),
       createdAt: evaluation.created_at,
+      updatedAt: evaluation.updated_at,
       jobTitle: evaluation.job_title,
     }));
 

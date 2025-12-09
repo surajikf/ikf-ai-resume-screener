@@ -32,7 +32,7 @@ const columnConfig = [
   },
 ];
 
-const JiraBoard = ({ evaluations, onSelectCandidate, onBulkSendEmail, onBulkSendWhatsApp, canSendEmail, canSendWhatsApp, settings }) => {
+const JiraBoard = ({ evaluations, onSelectCandidate, onViewResume, onBulkSendEmail, onBulkSendWhatsApp, canSendEmail, canSendWhatsApp, settings }) => {
   const [bulkSending, setBulkSending] = useState({});
   const [bulkStatus, setBulkStatus] = useState({});
   const [bulkModal, setBulkModal] = useState({ isOpen: false, type: null, candidates: null });
@@ -196,6 +196,7 @@ const JiraBoard = ({ evaluations, onSelectCandidate, onBulkSendEmail, onBulkSend
                       key={candidate.id}
                       candidate={candidate}
                       onSelect={onSelectCandidate}
+                      onViewResume={onViewResume}
                     />
                   ))
                 )}

@@ -277,18 +277,36 @@ const BulkSendModal = ({
                       </div>
                     </>
                   ) : (
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">
-                        WhatsApp Message
-                      </label>
-                      <textarea
-                        value={messageData.message}
-                        onChange={(e) => handleMessageChange(key, 'message', e.target.value)}
-                        disabled={isSent}
-                        rows={6}
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-green-400 focus:outline-none focus:ring-1 focus:ring-green-400 disabled:bg-slate-100 resize-y"
-                      />
-                    </div>
+                    <>
+                      <div className="mb-3">
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          To (WhatsApp Number)
+                        </label>
+                        <input
+                          type="text"
+                          value={messageData.to}
+                          onChange={(e) => handleMessageChange(key, 'to', e.target.value)}
+                          disabled={isSent}
+                          placeholder="10-digit phone number"
+                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-green-400 focus:outline-none focus:ring-1 focus:ring-green-400 disabled:bg-slate-100"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">
+                          Enter 10-digit number (e.g., 9272850850) or with country code (+919272850850)
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          WhatsApp Message
+                        </label>
+                        <textarea
+                          value={messageData.message}
+                          onChange={(e) => handleMessageChange(key, 'message', e.target.value)}
+                          disabled={isSent}
+                          rows={6}
+                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-green-400 focus:outline-none focus:ring-1 focus:ring-green-400 disabled:bg-slate-100 resize-y"
+                        />
+                      </div>
+                    </>
                   )}
 
                   {status && (

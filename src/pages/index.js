@@ -5,6 +5,7 @@ import UploadPanel from "@/components/UploadPanel";
 import JiraBoard from "@/components/JiraBoard";
 import EvaluationModal from "@/components/EvaluationModal";
 import StatusSummary from "@/components/StatusSummary";
+import ResumeViewer from "@/components/ResumeViewer";
 import {
   saveJD,
   getJDs,
@@ -110,6 +111,7 @@ export default function Home() {
   const [globalError, setGlobalError] = useState("");
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
+  const [selectedResume, setSelectedResume] = useState(null);
   const [settings, setSettings] = useState(null);
 
   // Function to load evaluations (reusable)
@@ -245,20 +247,30 @@ export default function Home() {
 
   useEffect(() => {
     // Load UI settings from database first, fallback to localStorage
-    fetch('/api/settings/get')
-      .then(res => res.json())
-      .then(data => {
+    const loadSettings = async () => {
+      try {
+        const response = await fetch('/api/settings/get');
+        const data = await response.json();
+        
         if (data.success && Object.keys(data.data).length > 0) {
           setSettings(data.data);
+          // Also sync to localStorage as backup
+          if (typeof window !== "undefined") {
+            localStorage.setItem("ikfSettings", JSON.stringify(data.data));
+          }
         } else {
           // Fallback to localStorage
-          setSettings(getSettings());
+          const localSettings = getSettings();
+          setSettings(localSettings);
         }
-      })
-      .catch(err => {
+      } catch (err) {
         console.log('Database settings load failed, using localStorage:', err);
-        setSettings(getSettings());
-      });
+        const localSettings = getSettings();
+        setSettings(localSettings);
+      }
+    };
+    
+    loadSettings();
   }, []);
 
   useEffect(() => {
@@ -600,8 +612,18 @@ export default function Home() {
   };
 
   const handleBulkSendEmail = async (candidates) => {
-    if (!settings || !settings.emailSendingEnabled) {
+    // Get settings from localStorage if state is not available
+    const currentSettings = settings || getSettings();
+    
+    if (!currentSettings || !currentSettings.emailSendingEnabled) {
       return { success: false, error: "Email sending is not enabled in Settings" };
+    }
+    
+    // Validate email credentials
+    if (!currentSettings.gmailEmail || !currentSettings.gmailAppPassword) {
+      if (!currentSettings.googleClientId || !currentSettings.googleClientSecret || !currentSettings.googleRefreshToken || !currentSettings.googleSenderEmail) {
+        return { success: false, error: "Missing email credentials. Please configure Gmail email + App Password in Settings." };
+      }
     }
 
     // Handle single candidate (from modal individual send)
@@ -614,7 +636,7 @@ export default function Home() {
         const bodyToUse = messageData.body || messageData.originalBody || candidate.emailDraft?.body || '';
         const emailBody = buildEmailBodyWithSignature(
           bodyToUse,
-          settings.emailSignature || ''
+          currentSettings.emailSignature || ''
         );
 
         const response = await fetch('/api/send-email', {
@@ -625,11 +647,13 @@ export default function Home() {
             subject: messageData.subject || candidate.emailDraft?.subject || 'IKF - Application Update',
             body: emailBody,
             evaluationId: candidate.id || candidate.databaseId || null,
-            emailSendingEnabled: settings.emailSendingEnabled,
-            googleClientId: settings.googleClientId,
-            googleClientSecret: settings.googleClientSecret,
-            googleRefreshToken: settings.googleRefreshToken,
-            googleSenderEmail: settings.googleSenderEmail,
+            emailSendingEnabled: currentSettings.emailSendingEnabled,
+            gmailEmail: currentSettings.gmailEmail,
+            gmailAppPassword: currentSettings.gmailAppPassword,
+            googleClientId: currentSettings.googleClientId,
+            googleClientSecret: currentSettings.googleClientSecret,
+            googleRefreshToken: currentSettings.googleRefreshToken,
+            googleSenderEmail: currentSettings.googleSenderEmail,
           }),
         });
 
@@ -658,7 +682,7 @@ export default function Home() {
         const bodyToUse = messageData.body || messageData.originalBody || candidate.emailDraft?.body || '';
         const emailBody = buildEmailBodyWithSignature(
           bodyToUse,
-          settings.emailSignature || ''
+          currentSettings.emailSignature || ''
         );
 
         const response = await fetch('/api/send-email', {
@@ -669,13 +693,13 @@ export default function Home() {
             subject: messageData.subject || candidate.emailDraft?.subject || 'IKF - Application Update',
             body: emailBody,
             evaluationId: candidate.id || candidate.databaseId || null,
-            emailSendingEnabled: settings.emailSendingEnabled,
-            gmailEmail: settings.gmailEmail,
-            gmailAppPassword: settings.gmailAppPassword,
-            googleClientId: settings.googleClientId,
-            googleClientSecret: settings.googleClientSecret,
-            googleRefreshToken: settings.googleRefreshToken,
-            googleSenderEmail: settings.googleSenderEmail,
+            emailSendingEnabled: currentSettings.emailSendingEnabled,
+            gmailEmail: currentSettings.gmailEmail,
+            gmailAppPassword: currentSettings.gmailAppPassword,
+            googleClientId: currentSettings.googleClientId,
+            googleClientSecret: currentSettings.googleClientSecret,
+            googleRefreshToken: currentSettings.googleRefreshToken,
+            googleSenderEmail: currentSettings.googleSenderEmail,
           }),
         });
 
@@ -711,8 +735,16 @@ export default function Home() {
   };
 
   const handleBulkSendWhatsApp = async (candidates) => {
-    if (!settings || !settings.whatsappSendingEnabled) {
+    // Get settings from localStorage if state is not available
+    const currentSettings = settings || getSettings();
+    
+    if (!currentSettings || !currentSettings.whatsappSendingEnabled) {
       return { success: false, error: "WhatsApp sending is not enabled in Settings" };
+    }
+    
+    // Validate WhatsApp credentials
+    if (!currentSettings.whatsappApiKey || !currentSettings.whatsappPhoneNumberId || !currentSettings.whatsappCompanyId) {
+      return { success: false, error: "Missing WhatsApp credentials. Please configure WhatsApp API settings in Settings." };
     }
 
     // Handle single candidate (from modal individual send)
@@ -720,22 +752,40 @@ export default function Home() {
       const messageData = candidates[0];
       const candidate = messageData.candidate;
       
+      // Validate phone number before sending
+      const phoneToSend = (messageData.to || candidate.candidateWhatsApp || '').trim();
+      if (!phoneToSend) {
+        return { success: false, error: "Phone number is missing" };
+      }
+      
+      // Basic validation - should be at least 10 digits (after removing spaces/dashes)
+      const digitsOnly = phoneToSend.replace(/\D/g, '');
+      if (digitsOnly.length < 10) {
+        return { success: false, error: "Invalid phone number format - need at least 10 digits" };
+      }
+      
+      // Validate message exists
+      const messageToSend = messageData.message || candidate.whatsappDraft?.message || '';
+      if (!messageToSend || messageToSend.trim().length === 0) {
+        return { success: false, error: "Message is empty" };
+      }
+      
       try {
         const response = await fetch('/api/send-whatsapp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: messageData.to,
-            message: messageData.message || '',
+            to: phoneToSend,
+            message: messageToSend,
             candidateName: candidate.candidateName || 'Candidate',
             evaluationId: candidate.id || candidate.databaseId || null,
-            whatsappSendingEnabled: settings.whatsappSendingEnabled,
-            whatsappApiKey: settings.whatsappApiKey,
-            whatsappApiUrl: settings.whatsappApiUrl,
-            whatsappPhoneNumberId: settings.whatsappPhoneNumberId,
-            whatsappCompanyId: settings.whatsappCompanyId,
-            whatsappTemplateName: settings.whatsappTemplateName,
-            whatsappLanguage: settings.whatsappLanguage || 'en',
+            whatsappSendingEnabled: currentSettings.whatsappSendingEnabled,
+            whatsappApiKey: currentSettings.whatsappApiKey,
+            whatsappApiUrl: currentSettings.whatsappApiUrl,
+            whatsappPhoneNumberId: currentSettings.whatsappPhoneNumberId,
+            whatsappCompanyId: currentSettings.whatsappCompanyId,
+            whatsappTemplateName: currentSettings.whatsappTemplateName,
+            whatsappLanguage: currentSettings.whatsappLanguage || 'en',
           }),
         });
 
@@ -764,22 +814,46 @@ export default function Home() {
       const messageData = candidates[i];
       const candidate = messageData.candidate || messageData;
       
+      // Validate phone number before sending
+      const phoneToSend = (messageData.to || candidate.candidateWhatsApp || '').trim();
+      if (!phoneToSend) {
+        failed++;
+        errors.push(`${candidate.candidateName || 'Candidate'}: Phone number is missing`);
+        continue;
+      }
+      
+      // Basic validation - should be at least 10 digits (after removing spaces/dashes)
+      const digitsOnly = phoneToSend.replace(/\D/g, '');
+      if (digitsOnly.length < 10) {
+        failed++;
+        errors.push(`${candidate.candidateName || 'Candidate'}: Invalid phone number format - need at least 10 digits`);
+        continue;
+      }
+      
+      // Validate message exists
+      const messageToSend = messageData.message || candidate.whatsappDraft?.message || '';
+      if (!messageToSend || messageToSend.trim().length === 0) {
+        failed++;
+        errors.push(`${candidate.candidateName || 'Candidate'}: Message is empty`);
+        continue;
+      }
+
       try {
         const response = await fetch('/api/send-whatsapp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: messageData.to || candidate.candidateWhatsApp,
-            message: messageData.message || candidate.whatsappDraft?.message || '',
+            to: phoneToSend,
+            message: messageToSend,
             candidateName: candidate.candidateName || 'Candidate',
             evaluationId: candidate.id || candidate.databaseId || null,
-            whatsappSendingEnabled: settings.whatsappSendingEnabled,
-            whatsappApiKey: settings.whatsappApiKey,
-            whatsappApiUrl: settings.whatsappApiUrl,
-            whatsappPhoneNumberId: settings.whatsappPhoneNumberId,
-            whatsappCompanyId: settings.whatsappCompanyId,
-            whatsappTemplateName: settings.whatsappTemplateName,
-            whatsappLanguage: settings.whatsappLanguage || 'en',
+            whatsappSendingEnabled: currentSettings.whatsappSendingEnabled,
+            whatsappApiKey: currentSettings.whatsappApiKey,
+            whatsappApiUrl: currentSettings.whatsappApiUrl,
+            whatsappPhoneNumberId: currentSettings.whatsappPhoneNumberId,
+            whatsappCompanyId: currentSettings.whatsappCompanyId,
+            whatsappTemplateName: currentSettings.whatsappTemplateName,
+            whatsappLanguage: currentSettings.whatsappLanguage || 'en',
           }),
         });
 
@@ -910,9 +984,16 @@ export default function Home() {
       const candidateName = summary.candidateName || "Candidate";
       const roleApplied = summary.roleApplied || jobTitle || "Role";
       
-      // Check for previous evaluation (from database first, then localStorage)
+      // Smart duplicate detection (from database with multiple matching strategies)
       try {
-        const duplicateCheck = await fetch(`/api/evaluations/check-duplicate?candidateName=${encodeURIComponent(candidateName)}`);
+        const duplicateParams = new URLSearchParams({
+          candidateName: candidateName,
+        });
+        if (summary.candidateEmail) duplicateParams.append('candidateEmail', summary.candidateEmail);
+        if (summary.candidateWhatsApp) duplicateParams.append('candidateWhatsApp', summary.candidateWhatsApp);
+        if (summary.linkedInUrl) duplicateParams.append('linkedInUrl', summary.linkedInUrl);
+        
+        const duplicateCheck = await fetch(`/api/evaluations/check-duplicate?${duplicateParams.toString()}`);
         const duplicateData = await duplicateCheck.json();
         
         if (duplicateData.success && duplicateData.isDuplicate) {
@@ -921,6 +1002,7 @@ export default function Home() {
             candidateName,
             previousRole: duplicateData.data.roleApplied,
             previousDate: prevDate,
+            matchMethod: duplicateData.matchMethod,
           });
           setTimeout(() => setDuplicateWarning(null), 20000);
         } else {
@@ -932,11 +1014,13 @@ export default function Home() {
               candidateName,
               previousRole: previousEval.roleApplied,
               previousDate: prevDate,
+              matchMethod: 'localStorage',
             });
             setTimeout(() => setDuplicateWarning(null), 20000);
           }
         }
       } catch (err) {
+        console.log('Duplicate check failed:', err);
         // Fallback to localStorage
         const previousEval = findPreviousEvaluation(candidateName);
         if (previousEval) {
@@ -945,6 +1029,7 @@ export default function Home() {
             candidateName,
             previousRole: previousEval.roleApplied,
             previousDate: prevDate,
+            matchMethod: 'localStorage',
           });
           setTimeout(() => setDuplicateWarning(null), 20000);
         }
@@ -1014,6 +1099,7 @@ export default function Home() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             candidateName,
+            candidateName,
             candidateEmail: summary.candidateEmail || '',
             candidateWhatsApp: summary.candidateWhatsApp || '',
             candidateLocation: summary.candidateLocation || '',
@@ -1047,6 +1133,27 @@ export default function Home() {
           if (dbEvaluationId) {
             evaluation.id = dbEvaluationId;
             evaluation.databaseId = dbEvaluationId;
+            
+            // Save resume file to database if available
+            if (data?.metadata?.resumeFile) {
+              try {
+                const resumeData = data.metadata.resumeFile;
+                await fetch('/api/resumes/save', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    evaluationId: dbEvaluationId,
+                    fileName: resumeData.fileName,
+                    fileType: resumeData.fileType,
+                    fileSize: resumeData.fileSize,
+                    fileContent: resumeData.fileContent, // Already base64
+                  }),
+                });
+              } catch (resumeError) {
+                console.log('Resume save failed:', resumeError);
+                // Continue - evaluation is saved, resume is optional
+              }
+            }
           }
         }
       } catch (dbError) {
@@ -1064,24 +1171,8 @@ export default function Home() {
         return updated;
       });
       
-      // Save JD to database
-      try {
-        await fetch('/api/job-descriptions/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: evaluation.jobTitle || jobTitle || "Job Description",
-            description: jobDescription,
-            jdLink: data?.metadata?.jdLink || '',
-          }),
-        });
-      } catch (err) {
-        console.log('JD database save failed, using localStorage:', err);
-      }
-      
-      // Also save to localStorage as fallback
-      saveJD(evaluation.jobTitle || jobTitle || "Job Description", jobDescription);
-      setJdHistory(getJDs());
+      // Note: JD is NOT automatically saved after evaluation
+      // User must explicitly click "Save JD" button to save it
 
       return evaluation;
     } catch (error) {
@@ -1219,6 +1310,11 @@ export default function Home() {
                       <strong>{duplicateWarning.candidateName}</strong> was previously evaluated on{" "}
                       <strong>{duplicateWarning.previousDate}</strong> for the position:{" "}
                       <strong>{duplicateWarning.previousRole}</strong>
+                      {duplicateWarning.matchMethod && (
+                        <span className="ml-2 text-xs text-amber-600">
+                          (Matched by: {duplicateWarning.matchMethod})
+                        </span>
+                      )}
                     </p>
                   </div>
                   <button
@@ -1273,6 +1369,7 @@ export default function Home() {
                 <JiraBoard
                   evaluations={boardEvaluations}
                   onSelectCandidate={setSelectedEvaluation}
+                  onViewResume={(candidate) => setSelectedResume(candidate)}
                   onBulkSendEmail={handleBulkSendEmail}
                   onBulkSendWhatsApp={handleBulkSendWhatsApp}
                   canSendEmail={!!settings?.emailSendingEnabled}
@@ -1290,6 +1387,14 @@ export default function Home() {
             emailSignature={settings?.emailSignature}
             canSendEmail={!!settings?.emailSendingEnabled}
             canSendWhatsApp={!!settings?.whatsappSendingEnabled}
+          />
+        )}
+        
+        {selectedResume && (
+          <ResumeViewer
+            evaluationId={selectedResume.databaseId || selectedResume.id}
+            candidateName={selectedResume.candidateName}
+            onClose={() => setSelectedResume(null)}
           />
         )}
         

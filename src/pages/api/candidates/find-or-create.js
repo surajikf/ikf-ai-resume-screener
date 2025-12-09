@@ -1,5 +1,9 @@
-import { query, getConnection } from '@/lib/db';
+import { getConnection } from '@/lib/db';
 
+/**
+ * Smart candidate finder with multiple matching strategies
+ * Priority: Email > WhatsApp > Name (fuzzy)
+ */
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -12,59 +16,26 @@ export default async function handler(req, res) {
       candidateWhatsApp,
       candidateLocation,
       linkedInUrl,
-      roleApplied,
-      companyLocation,
-      experienceCtcNoticeLocation,
-      workExperience,
-      verdict,
-      matchScore,
-      scoreBreakdown,
-      keyStrengths,
-      gaps,
-      educationGaps,
-      experienceGaps,
-      betterSuitedFocus,
-      emailDraft,
-      whatsappDraft,
-      jobDescriptionId,
+      currentDesignation,
+      currentCompany,
+      totalExperienceYears,
+      numberOfCompanies,
     } = req.body;
 
-    // Start transaction by getting connection
+    if (!candidateName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Candidate name is required',
+      });
+    }
+
     const connection = await getConnection();
     await connection.beginTransaction();
 
     try {
-      // Helper to execute queries on the transaction connection
-      const executeQuery = async (sql, params = []) => {
-        const [results] = await connection.execute(sql, params);
-        return results;
-      };
-
-      // 1. Smart candidate matching using the find-or-create API logic
-      // Use the candidates/find-or-create endpoint logic inline for better performance
       let candidateId = null;
-      
-      // Extract derived fields for candidate profile
-      const workExp = workExperience || [];
-      const latestExp = workExp.length > 0 ? workExp[0] : null;
-      const currentDesignation = latestExp?.role || null;
-      const currentCompany = latestExp?.companyName || null;
-      
-      // Calculate total experience and number of companies
-      let totalExpYears = null;
-      let numberOfCompanies = null;
-      if (workExp.length > 0) {
-        const totalExpItem = workExp.find(exp => exp.companyName === 'Total Experience');
-        if (totalExpItem && totalExpItem.duration) {
-          // Parse duration like "3 years 6 months" to years
-          const yearsMatch = totalExpItem.duration.match(/(\d+)\s*years?/i);
-          const monthsMatch = totalExpItem.duration.match(/(\d+)\s*months?/i);
-          const years = yearsMatch ? parseFloat(yearsMatch[1]) : 0;
-          const months = monthsMatch ? parseFloat(monthsMatch[1]) : 0;
-          totalExpYears = years + (months / 12);
-        }
-        numberOfCompanies = workExp.filter(exp => exp.companyName !== 'Total Experience').length;
-      }
+      let isNewCandidate = false;
+      let matchMethod = null;
 
       // Strategy 1: Match by email (most reliable)
       if (candidateEmail) {
@@ -72,8 +43,10 @@ export default async function handler(req, res) {
           'SELECT id FROM candidates WHERE candidate_email = ? LIMIT 1',
           [candidateEmail]
         );
+        
         if (emailResults.length > 0) {
           candidateId = emailResults[0].id;
+          matchMethod = 'email';
         }
       }
 
@@ -83,32 +56,42 @@ export default async function handler(req, res) {
           'SELECT id FROM candidates WHERE candidate_whatsapp = ? LIMIT 1',
           [candidateWhatsApp]
         );
+        
         if (whatsappResults.length > 0) {
           candidateId = whatsappResults[0].id;
+          matchMethod = 'whatsapp';
         }
       }
 
       // Strategy 3: Match by LinkedIn URL (reliable)
-      const linkedInUrl = req.body.linkedInUrl || null;
       if (!candidateId && linkedInUrl) {
         const [linkedinResults] = await connection.execute(
           'SELECT id FROM candidates WHERE linkedin_url = ? LIMIT 1',
           [linkedInUrl]
         );
+        
         if (linkedinResults.length > 0) {
           candidateId = linkedinResults[0].id;
+          matchMethod = 'linkedin';
         }
       }
 
-      // Strategy 4: Fuzzy name matching (less reliable)
+      // Strategy 4: Fuzzy name matching (less reliable, but useful)
       if (!candidateId) {
+        // Normalize name for comparison (remove extra spaces, lowercase)
         const normalizedName = candidateName.trim().toLowerCase().replace(/\s+/g, ' ');
+        
         const [nameResults] = await connection.execute(
-          `SELECT id FROM candidates WHERE LOWER(TRIM(REPLACE(candidate_name, '  ', ' '))) = ? LIMIT 1`,
+          `SELECT id, candidate_name 
+           FROM candidates 
+           WHERE LOWER(TRIM(REPLACE(candidate_name, '  ', ' '))) = ? 
+           LIMIT 1`,
           [normalizedName]
         );
+        
         if (nameResults.length > 0) {
           candidateId = nameResults[0].id;
+          matchMethod = 'name';
         }
       }
 
@@ -136,14 +119,14 @@ export default async function handler(req, res) {
             linkedInUrl || null,
             currentDesignation || null,
             currentCompany || null,
-            totalExpYears || null,
+            totalExperienceYears || null,
             numberOfCompanies || null,
             candidateId,
           ]
         );
       } else {
-        // Create new candidate with complete profile
-        const [candidateInsert] = await connection.execute(
+        // Create new candidate
+        const [insertResult] = await connection.execute(
           `INSERT INTO candidates (
             candidate_name, candidate_email, candidate_whatsapp, candidate_location,
             linkedin_url, current_designation, current_company,
@@ -157,52 +140,24 @@ export default async function handler(req, res) {
             linkedInUrl || null,
             currentDesignation || null,
             currentCompany || null,
-            totalExpYears || null,
+            totalExperienceYears || null,
             numberOfCompanies || null,
           ]
         );
-        candidateId = candidateInsert.insertId;
+        candidateId = insertResult.insertId;
+        isNewCandidate = true;
+        matchMethod = 'new';
       }
-
-      // 2. Insert evaluation
-      const evaluationInsert = await executeQuery(
-        `INSERT INTO evaluations (
-          candidate_id, job_description_id, role_applied, company_location,
-          experience_ctc_notice_location, work_experience, verdict, match_score,
-          score_breakdown, key_strengths, gaps, education_gaps, experience_gaps,
-          better_suited_focus, email_draft, whatsapp_draft
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          candidateId,
-          jobDescriptionId || null,
-          roleApplied,
-          companyLocation || null,
-          experienceCtcNoticeLocation || null,
-          JSON.stringify(workExperience || []),
-          verdict,
-          matchScore,
-          JSON.stringify(scoreBreakdown || {}),
-          JSON.stringify(keyStrengths || []),
-          JSON.stringify(gaps || []),
-          JSON.stringify(educationGaps || []),
-          JSON.stringify(experienceGaps || []),
-          betterSuitedFocus || null,
-          JSON.stringify(emailDraft || {}),
-          JSON.stringify(whatsappDraft || {}),
-        ]
-      );
-
-      const evaluationId = evaluationInsert.insertId;
 
       await connection.commit();
       connection.release();
 
       return res.status(200).json({
         success: true,
-        message: 'Evaluation saved successfully',
         data: {
-          evaluationId,
           candidateId,
+          isNewCandidate,
+          matchMethod,
         },
       });
     } catch (error) {
@@ -211,10 +166,10 @@ export default async function handler(req, res) {
       throw error;
     }
   } catch (error) {
-    console.error('Error saving evaluation:', error);
+    console.error('Error finding/creating candidate:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to save evaluation',
+      error: 'Failed to find or create candidate',
       details: error.message,
     });
   }

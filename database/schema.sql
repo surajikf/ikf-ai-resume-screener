@@ -13,19 +13,30 @@ CREATE TABLE IF NOT EXISTS `job_descriptions` (
   INDEX `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Candidates Table
+-- Candidates Table (Enhanced with complete profile)
 CREATE TABLE IF NOT EXISTS `candidates` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `candidate_name` VARCHAR(255) NOT NULL,
   `candidate_email` VARCHAR(255) DEFAULT NULL,
   `candidate_whatsapp` VARCHAR(20) DEFAULT NULL,
   `candidate_location` VARCHAR(255) DEFAULT NULL,
+  `linkedin_url` VARCHAR(500) DEFAULT NULL,
+  `current_designation` VARCHAR(255) DEFAULT NULL,
+  `current_company` VARCHAR(255) DEFAULT NULL,
+  `total_experience_years` DECIMAL(4,2) DEFAULT NULL,
+  `number_of_companies` INT DEFAULT NULL,
+  `profile_summary` TEXT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `unique_email` (`candidate_email`),
+  UNIQUE KEY `unique_whatsapp` (`candidate_whatsapp`),
   INDEX `idx_candidate_name` (`candidate_name`),
   INDEX `idx_candidate_email` (`candidate_email`),
   INDEX `idx_candidate_whatsapp` (`candidate_whatsapp`),
-  INDEX `idx_created_at` (`created_at`)
+  INDEX `idx_candidate_location` (`candidate_location`),
+  INDEX `idx_linkedin_url` (`linkedin_url`(255)),
+  INDEX `idx_created_at` (`created_at`),
+  INDEX `idx_name_email_whatsapp` (`candidate_name`, `candidate_email`, `candidate_whatsapp`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Evaluations Table
@@ -103,8 +114,23 @@ CREATE TABLE IF NOT EXISTS `settings` (
   INDEX `idx_setting_key` (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Add indexes for better performance (run these separately if tables already exist)
--- ALTER TABLE `candidates` ADD INDEX IF NOT EXISTS `idx_email_whatsapp` (`candidate_email`, `candidate_whatsapp`);
+-- Resumes Table (for storing resume files)
+CREATE TABLE IF NOT EXISTS `resumes` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `evaluation_id` INT NOT NULL,
+  `file_name` VARCHAR(255) NOT NULL,
+  `file_type` VARCHAR(100) DEFAULT NULL,
+  `file_size` INT DEFAULT NULL,
+  `file_content` LONGBLOB NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`evaluation_id`) REFERENCES `evaluations`(`id`) ON DELETE CASCADE,
+  INDEX `idx_evaluation_id` (`evaluation_id`),
+  INDEX `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Additional performance indexes (run these separately if tables already exist)
 -- ALTER TABLE `evaluations` ADD INDEX IF NOT EXISTS `idx_role_verdict` (`role_applied`, `verdict`);
 -- ALTER TABLE `evaluations` ADD INDEX IF NOT EXISTS `idx_score_date` (`match_score`, `created_at`);
+-- ALTER TABLE `evaluations` ADD INDEX IF NOT EXISTS `idx_candidate_created` (`candidate_id`, `created_at`);
+-- ALTER TABLE `evaluations` ADD INDEX IF NOT EXISTS `idx_verdict_score` (`verdict`, `match_score`);
 

@@ -7,6 +7,7 @@ import {
   FaLinkedin,
   FaBuilding,
   FaCalendarAlt,
+  FaFilePdf,
 } from "react-icons/fa";
 
 const verdictStyles = {
@@ -42,7 +43,7 @@ const getScoreBg = (score) => {
   return "bg-red-50 border-red-200";
 };
 
-const CandidateCard = ({ candidate, onSelect }) => {
+const CandidateCard = ({ candidate, onSelect, onViewResume }) => {
   const styles = verdictStyles[candidate.verdict] || verdictStyles["Not Suitable"];
   const matchScore = candidate.matchScore || 0;
   const scoreColor = getScoreColor(matchScore);
@@ -190,14 +191,27 @@ const CandidateCard = ({ candidate, onSelect }) => {
           </div>
         )}
       </div>
-      <button
-        type="button"
-        onClick={() => onSelect(candidate)}
-        className="mt-1 flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
-      >
-        <FaEnvelopeOpenText />
-        View &amp; Send Email
-      </button>
+      <div className="flex gap-2 mt-1">
+        <button
+          type="button"
+          onClick={() => onSelect(candidate)}
+          className="flex-1 flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+        >
+          <FaEnvelopeOpenText />
+          View &amp; Send Email
+        </button>
+        {(candidate.databaseId || candidate.id) && onViewResume && (
+          <button
+            type="button"
+            onClick={() => onViewResume(candidate)}
+            className="flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            title="View Resume"
+          >
+            <FaFilePdf />
+            Resume
+          </button>
+        )}
+      </div>
     </article>
   );
 };
