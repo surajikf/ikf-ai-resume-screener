@@ -30,11 +30,18 @@ const CACHE_DURATION = 60000; // 1 minute cache
 export const getSettingsFromDatabase = async () => {
   try {
     const response = await fetch('/api/settings/get');
+    
+    // Handle non-200 responses gracefully
+    if (!response.ok) {
+      console.log('Settings API returned non-200 status:', response.status);
+      return DEFAULT_SETTINGS;
+    }
+    
     const data = await response.json();
     
     if (data.success) {
       // Always return settings (either from DB or defaults)
-      const settings = data.data || {};
+      const settings = data.data || DEFAULT_SETTINGS;
       
       // If settings were just initialized, cache them
       if (Object.keys(settings).length > 0) {
@@ -49,11 +56,11 @@ export const getSettingsFromDatabase = async () => {
       return settings;
     }
     
-    // Fallback to defaults if API fails
+    // Fallback to defaults if API returns success: false
     return DEFAULT_SETTINGS;
   } catch (error) {
     console.log('Failed to load settings from database:', error);
-    // Return defaults on error
+    // Return defaults on error - ensures app always works
     return DEFAULT_SETTINGS;
   }
 };
