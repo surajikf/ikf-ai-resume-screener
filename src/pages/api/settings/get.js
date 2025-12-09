@@ -80,6 +80,13 @@ export default async function handler(req, res) {
           settings[row.setting_key] = row.setting_value;
         }
       });
+      
+      // Debug: Log what we found in database for API Key and Company ID
+      console.log('[settings/get] Raw database values:', {
+        whatsappApiKey: settings.whatsappApiKey ? `***${settings.whatsappApiKey.slice(-4)} (${settings.whatsappApiKey.length} chars)` : 'not found',
+        whatsappCompanyId: settings.whatsappCompanyId ? `***${settings.whatsappCompanyId.slice(-4)} (${settings.whatsappCompanyId.length} chars)` : 'not found',
+        allSettingKeys: Object.keys(settings),
+      });
     }
     
     // Hardcoded defaults with environment variables
@@ -195,6 +202,15 @@ export default async function handler(req, res) {
     }
 
     // Return merged settings (database values + env vars/defaults)
+    console.log('[settings/get] Final merged settings being returned:', {
+      hasApiKey: !!mergedSettings.whatsappApiKey && mergedSettings.whatsappApiKey !== "",
+      hasCompanyId: !!mergedSettings.whatsappCompanyId && mergedSettings.whatsappCompanyId !== "",
+      apiKeyLength: mergedSettings.whatsappApiKey?.length || 0,
+      companyIdLength: mergedSettings.whatsappCompanyId?.length || 0,
+      apiKeySource: settings.whatsappApiKey && settings.whatsappApiKey !== "" ? 'database' : (process.env.WHATSAPP_API_KEY ? 'env' : 'default'),
+      companyIdSource: settings.whatsappCompanyId && settings.whatsappCompanyId !== "" ? 'database' : (process.env.WHATSAPP_COMPANY_ID ? 'env' : 'default'),
+    });
+    
     return res.status(200).json({
       success: true,
       data: mergedSettings,
