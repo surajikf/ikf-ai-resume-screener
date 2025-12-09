@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false); // Start disabled until settings are loaded
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [loadedFromDb, setLoadedFromDb] = useState(false); // Track if settings were loaded from database
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
@@ -44,10 +45,17 @@ export default function SettingsPage() {
       const defaults = getSettings();
       const current = dbSettings || defaults;
       
+      // Check if we have database settings (not just defaults)
+      const hasDbSettings = dbSettings && Object.keys(dbSettings).length > 0;
+      setLoadedFromDb(hasDbSettings);
+      
       console.log('[Settings] Loaded from database:', {
         hasDbSettings: !!dbSettings,
+        loadedFromDb: hasDbSettings,
         hasApiKey: !!current.whatsappApiKey,
         hasCompanyId: !!current.whatsappCompanyId,
+        hasGmailEmail: !!current.gmailEmail,
+        hasGmailPassword: !!current.gmailAppPassword,
         apiKeyLength: current.whatsappApiKey?.length || 0,
         companyIdLength: current.whatsappCompanyId?.length || 0,
         apiKeyValue: current.whatsappApiKey ? '***' + current.whatsappApiKey.slice(-4) : 'empty',
@@ -170,6 +178,12 @@ export default function SettingsPage() {
       hasCompanyId: !!settingsToSave.whatsappCompanyId,
       hasPhoneNumberId: !!settingsToSave.whatsappPhoneNumberId,
       hasTemplateName: !!settingsToSave.whatsappTemplateName,
+      hasGmailEmail: !!settingsToSave.gmailEmail,
+      hasGmailPassword: !!settingsToSave.gmailAppPassword,
+      hasGoogleClientId: !!settingsToSave.googleClientId,
+      hasGoogleClientSecret: !!settingsToSave.googleClientSecret,
+      hasGoogleRefreshToken: !!settingsToSave.googleRefreshToken,
+      allCredentialsCount: Object.values(settingsToSave).filter(v => v && v !== "").length,
     });
 
     try {
@@ -226,14 +240,21 @@ export default function SettingsPage() {
             {saved && (
               <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
                 <FaCheckCircle />
-                <span>Settings saved successfully!</span>
+                <span>Settings saved successfully to database!</span>
               </div>
             )}
             
-            {autoSaveEnabled && !saved && (
+            {loadedFromDb && !saved && (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+                <FaCheckCircle />
+                <span>Credentials loaded from database automatically</span>
+              </div>
+            )}
+            
+            {autoSaveEnabled && !saved && !loadedFromDb && (
               <div className="text-xs text-slate-500 mt-2 flex items-center gap-1">
                 <FaInfoCircle className="text-slate-400" />
-                <span>Auto-save enabled - changes are saved automatically</span>
+                <span>Auto-save enabled - changes are saved automatically to database</span>
               </div>
             )}
           </header>
@@ -289,7 +310,7 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <div>
                         <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Gmail Email
+                          Gmail Email <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
                             </label>
                             <input
                               type="email"
@@ -300,7 +321,7 @@ export default function SettingsPage() {
                           </div>
                           <div>
                         <label className="block text-xs font-medium text-slate-700 mb-1">
-                          App Password
+                          App Password <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
                             </label>
                             <input
                               type="password"
@@ -319,7 +340,7 @@ export default function SettingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             <div>
                             <label className="block text-xs font-medium text-slate-700 mb-1">
-                              Client ID
+                              Client ID <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
                               </label>
                               <input
                                 type="text"
@@ -330,7 +351,7 @@ export default function SettingsPage() {
                             </div>
                             <div>
                             <label className="block text-xs font-medium text-slate-700 mb-1">
-                              Client Secret
+                              Client Secret <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
                               </label>
                               <input
                                 type="password"
@@ -341,7 +362,7 @@ export default function SettingsPage() {
                             </div>
                             <div>
                             <label className="block text-xs font-medium text-slate-700 mb-1">
-                              Refresh Token
+                              Refresh Token <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
                               </label>
                                 <input
                                   type="password"
@@ -352,7 +373,7 @@ export default function SettingsPage() {
                             </div>
                             <div>
                             <label className="block text-xs font-medium text-slate-700 mb-1">
-                              Sender Email
+                              Sender Email <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
                               </label>
                               <input
                                 type="email"
@@ -396,7 +417,7 @@ export default function SettingsPage() {
                     <div className="p-1.5 bg-blue-50 border border-blue-200 rounded-lg">
                             <p className="text-xs text-blue-800">
                         <FaInfoCircle className="inline mr-1 text-xs" />
-                        Settings saved to database and persist across deployments.
+                        All credentials are automatically saved to the database when you enter them. They will be automatically loaded when you access this page on Vercel - no need to enter them again!
                             </p>
                       </div>
 
@@ -509,7 +530,7 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <p className="font-medium text-slate-900 mb-0.5 text-xs">Credentials</p>
-                      <p className="text-xs">Saved from local are fetched on Vercel automatically.</p>
+                      <p className="text-xs">All credentials saved locally are automatically stored in the database and will be fetched automatically when you access the Vercel link. No need to enter them again!</p>
                     </div>
                   </div>
                 </div>
