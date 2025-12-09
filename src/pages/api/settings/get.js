@@ -106,17 +106,49 @@ export default async function handler(req, res) {
       whatsappLanguage: "en",
     };
     
-    // Merge: Start with defaults (includes env vars), then override with non-empty database values
+    // Merge: Start with defaults (includes env vars), then override with database values
+    // Priority: Non-empty DB values > Env vars > Hardcoded defaults
     const mergedSettings = { ...DEFAULT_SETTINGS };
     for (const [key, dbValue] of Object.entries(settings)) {
-      // Only use database value if it's not empty (empty string, null, undefined)
-      // This ensures env vars are not overridden by empty database values
+      // Use database value if it exists and is non-empty (user saved a value)
       if (dbValue !== null && dbValue !== undefined && dbValue !== "") {
         mergedSettings[key] = dbValue;
       }
-      // If database has empty string, keep the default/env var value
+      // If database has empty string, check if env var exists for credentials
+      // For API Key and Company ID: if DB is empty but env var exists, use env var
+      // Otherwise, if DB explicitly has empty string, it means user cleared it
+      else if (dbValue === "" && (key === "whatsappApiKey" || key === "whatsappCompanyId")) {
+        if (key === "whatsappApiKey" && process.env.WHATSAPP_API_KEY) {
+          mergedSettings[key] = process.env.WHATSAPP_API_KEY;
+        } else if (key === "whatsappCompanyId" && process.env.WHATSAPP_COMPANY_ID) {
+          mergedSettings[key] = process.env.WHATSAPP_COMPANY_ID;
+        }
+        // If no env var, keep empty (user cleared it)
+      }
+      // If database value is null/undefined (not set), keep the default/env var value
     }
     
+    // Backfill any non-empty merged values into DB when DB is missing/empty
+    try {
+      const missingToPersist = Object.entries(mergedSettings).filter(([key, value]) => {
+        const dbVal = settings[key];
+        const hasDbVal = dbVal !== null && dbVal !== undefined && dbVal !== "";
+        const hasMergedVal = value !== null && value !== undefined && value !== "";
+        return !hasDbVal && hasMergedVal;
+      });
+
+      for (const [key, value] of missingToPersist) {
+        await query(
+          `INSERT INTO settings (setting_key, setting_value)
+           VALUES (?, ?)
+           ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()`,
+          [key, JSON.stringify(value), JSON.stringify(value)]
+        );
+      }
+    } catch (persistErr) {
+      console.error("[settings/get] Backfill to DB failed:", persistErr);
+    }
+
     console.log('[settings/get] Settings merge result:', {
       dbSettingsCount: Object.keys(settings).length,
       hasApiKeyInDb: !!settings.whatsappApiKey && settings.whatsappApiKey !== "",

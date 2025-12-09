@@ -49,6 +49,15 @@ export const getSettingsFromDatabase = async () => {
       // Always return settings (either from DB or defaults)
       const settings = data.data || DEFAULT_SETTINGS;
       
+      console.log('[settingsStorage] Received from API:', {
+        hasApiKey: !!settings.whatsappApiKey && settings.whatsappApiKey !== "",
+        hasCompanyId: !!settings.whatsappCompanyId && settings.whatsappCompanyId !== "",
+        apiKeyLength: settings.whatsappApiKey?.length || 0,
+        companyIdLength: settings.whatsappCompanyId?.length || 0,
+        apiKeyPreview: settings.whatsappApiKey ? '***' + settings.whatsappApiKey.slice(-4) : 'empty',
+        companyIdPreview: settings.whatsappCompanyId ? '***' + settings.whatsappCompanyId.slice(-4) : 'empty',
+      });
+      
       // If settings were just initialized, cache them
       if (Object.keys(settings).length > 0) {
         cachedDbSettings = settings;
