@@ -11,18 +11,18 @@ const DEFAULT_SETTINGS = {
   ].join("\n"),
   emailSendingEnabled: false,
   // Email Gmail API Credentials - hardcoded, can be overridden via database
-  gmailEmail: process.env.GMAIL_EMAIL || "",
-  gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
+  gmailEmail: process.env.GMAIL_EMAIL || "careers@ikf.co.in",
+  gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "qellqgrcmusuypyy",
   googleClientId: process.env.GOOGLE_CLIENT_ID || "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
   googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || "",
   googleSenderEmail: process.env.GOOGLE_SENDER_EMAIL || "",
   // WhatsApp MyOperator API Credentials - hardcoded, can be overridden via database
   whatsappSendingEnabled: true,
-  whatsappApiKey: process.env.WHATSAPP_API_KEY || "",
+  whatsappApiKey: process.env.WHATSAPP_API_KEY || "9oAlpAhPvkKOGwuo6LiU8CPyRPxXSDoRVq1PFD0tkN",
   whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
-  whatsappPhoneNumberId: "690875100784871", // Hardcoded default
-  whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "",
+  whatsappPhoneNumberId: "8044186875", // Hardcoded default
+  whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "689044bc84f5e822",
   whatsappTemplateName: "resume_screener_message01", // Hardcoded default
   whatsappLanguage: "en",
 };

@@ -10,17 +10,17 @@ const inter = Inter({ subsets: ["latin"] });
 export default function SettingsPage() {
   const [emailSignature, setEmailSignature] = useState("");
   const [emailSendingEnabled, setEmailSendingEnabled] = useState(false);
-  const [gmailEmail, setGmailEmail] = useState("");
-  const [gmailAppPassword, setGmailAppPassword] = useState("");
+  const [gmailEmail, setGmailEmail] = useState("careers@ikf.co.in");
+  const [gmailAppPassword, setGmailAppPassword] = useState("qellqgrcmusuypyy");
   const [googleClientId, setGoogleClientId] = useState("");
   const [googleClientSecret, setGoogleClientSecret] = useState("");
   const [googleRefreshToken, setGoogleRefreshToken] = useState("");
   const [googleSenderEmail, setGoogleSenderEmail] = useState("");
   const [whatsappSendingEnabled, setWhatsappSendingEnabled] = useState(true);
-  const [whatsappApiKey, setWhatsappApiKey] = useState("");
+  const [whatsappApiKey, setWhatsappApiKey] = useState("9oAlpAhPvkKOGwuo6LiU8CPyRPxXSDoRVq1PFD0tkN");
   const [whatsappApiUrl, setWhatsappApiUrl] = useState("https://publicapi.myoperator.co/chat/messages");
-  const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState("690875100784871");
-  const [whatsappCompanyId, setWhatsappCompanyId] = useState("");
+  const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState("8044186875");
+  const [whatsappCompanyId, setWhatsappCompanyId] = useState("689044bc84f5e822");
   const [whatsappTemplateName, setWhatsappTemplateName] = useState("resume_screener_message01");
   const [whatsappLanguage, setWhatsappLanguage] = useState("en");
   const [saved, setSaved] = useState(false);
@@ -282,18 +282,29 @@ export default function SettingsPage() {
       }, 2000);
       
       // Log detailed information about what was fetched
+      const apiKeyFound = apiKeyFromDb !== null && apiKeyFromDb !== undefined;
+      const companyIdFound = companyIdFromDb !== null && companyIdFromDb !== undefined;
+      
       console.log('[Settings] Fetched from database:', {
         hasDbSettings: hasDbSettings,
-        apiKeyFromDb: apiKeyFromDb !== null && apiKeyFromDb !== undefined,
-        apiKeyValue: apiKeyFromDb !== null && apiKeyFromDb !== undefined ? (apiKeyFromDb ? '***' + String(apiKeyFromDb).slice(-4) : 'empty string') : 'not in DB',
+        apiKeyFromDb: apiKeyFound,
+        apiKeyValue: apiKeyFound ? (apiKeyFromDb ? '***' + String(apiKeyFromDb).slice(-4) : 'empty string') : 'not in DB',
         apiKeyLength: apiKeyFromDb ? String(apiKeyFromDb).length : 0,
-        companyIdFromDb: companyIdFromDb !== null && companyIdFromDb !== undefined,
-        companyIdValue: companyIdFromDb !== null && companyIdFromDb !== undefined ? (companyIdFromDb ? '***' + String(companyIdFromDb).slice(-4) : 'empty string') : 'not in DB',
+        companyIdFromDb: companyIdFound,
+        companyIdValue: companyIdFound ? (companyIdFromDb ? '***' + String(companyIdFromDb).slice(-4) : 'empty string') : 'not in DB',
         companyIdLength: companyIdFromDb ? String(companyIdFromDb).length : 0,
         rawDbApiKey: rawDb.whatsappApiKey,
         rawDbCompanyId: rawDb.whatsappCompanyId,
         allDbSettingsKeys: Object.keys(allDbSettings),
+        rawDbObject: rawDb,
       });
+      
+      // Show warning if database is empty
+      if (!hasDbSettings || Object.keys(allDbSettings).length === 0) {
+        console.warn('[Settings] Database is empty! Please save your credentials first by entering them and clicking "Save Now".');
+      } else if (!apiKeyFound && !companyIdFound) {
+        console.warn('[Settings] API Key and Company ID not found in database. Please save them first.');
+      }
     } catch (err) {
       console.error('Failed to fetch settings from database:', err);
       setLoading(false);

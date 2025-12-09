@@ -56,17 +56,17 @@ export default async function handler(req, res) {
           "📞 +91 9665079317",
         ].join("\n"),
         emailSendingEnabled: false,
-        gmailEmail: process.env.GMAIL_EMAIL || "",
-        gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
+        gmailEmail: process.env.GMAIL_EMAIL || "careers@ikf.co.in",
+        gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "qellqgrcmusuypyy",
         googleClientId: process.env.GOOGLE_CLIENT_ID || "",
         googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
         googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || "",
         googleSenderEmail: process.env.GOOGLE_SENDER_EMAIL || "",
         whatsappSendingEnabled: true,
-        whatsappApiKey: process.env.WHATSAPP_API_KEY || "",
+        whatsappApiKey: process.env.WHATSAPP_API_KEY || "9oAlpAhPvkKOGwuo6LiU8CPyRPxXSDoRVq1PFD0tkN",
         whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
-        whatsappPhoneNumberId: "690875100784871",
-        whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "",
+        whatsappPhoneNumberId: "8044186875",
+        whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "689044bc84f5e822",
         whatsappTemplateName: "resume_screener_message01",
         whatsappLanguage: "en",
       };
@@ -92,14 +92,22 @@ export default async function handler(req, res) {
       
       // Debug: Log what we found in database for API Key and Company ID
       console.log('[settings/get] Raw database values:', {
-        whatsappApiKey: settings.whatsappApiKey ? `***${settings.whatsappApiKey.slice(-4)} (${settings.whatsappApiKey.length} chars)` : 'not found',
-        whatsappApiKeyRaw: settings.whatsappApiKey || 'null/undefined/empty',
+        totalRows: result.data.length,
+        whatsappApiKey: settings.whatsappApiKey ? `***${String(settings.whatsappApiKey).slice(-4)} (${String(settings.whatsappApiKey).length} chars)` : 'not found',
+        whatsappApiKeyRaw: settings.whatsappApiKey !== undefined ? (settings.whatsappApiKey || 'empty string') : 'not in DB',
         whatsappApiKeyType: typeof settings.whatsappApiKey,
-        whatsappCompanyId: settings.whatsappCompanyId ? `***${settings.whatsappCompanyId.slice(-4)} (${settings.whatsappCompanyId.length} chars)` : 'not found',
-        whatsappCompanyIdRaw: settings.whatsappCompanyId || 'null/undefined/empty',
+        whatsappCompanyId: settings.whatsappCompanyId ? `***${String(settings.whatsappCompanyId).slice(-4)} (${String(settings.whatsappCompanyId).length} chars)` : 'not found',
+        whatsappCompanyIdRaw: settings.whatsappCompanyId !== undefined ? (settings.whatsappCompanyId || 'empty string') : 'not in DB',
         whatsappCompanyIdType: typeof settings.whatsappCompanyId,
         allSettingKeys: Object.keys(settings),
         allSettingsRaw: settings,
+      });
+    } else {
+      console.log('[settings/get] No data returned from database query:', {
+        hasResult: !!result,
+        hasData: !!result.data,
+        isArray: Array.isArray(result.data),
+        resultData: result.data,
       });
     }
     
@@ -112,19 +120,19 @@ export default async function handler(req, res) {
         "📞 +91 9665079317",
       ].join("\n"),
       emailSendingEnabled: false,
-      gmailEmail: process.env.GMAIL_EMAIL || "",
-      gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
+      gmailEmail: process.env.GMAIL_EMAIL || "careers@ikf.co.in",
+      gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "qellqgrcmusuypyy",
       googleClientId: process.env.GOOGLE_CLIENT_ID || "",
       googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || "",
       googleSenderEmail: process.env.GOOGLE_SENDER_EMAIL || "",
-      whatsappSendingEnabled: true,
-      whatsappApiKey: process.env.WHATSAPP_API_KEY || "",
-      whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
-      whatsappPhoneNumberId: "690875100784871",
-      whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "",
-      whatsappTemplateName: "resume_screener_message01",
-      whatsappLanguage: "en",
+        whatsappSendingEnabled: true,
+        whatsappApiKey: process.env.WHATSAPP_API_KEY || "9oAlpAhPvkKOGwuo6LiU8CPyRPxXSDoRVq1PFD0tkN",
+        whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
+        whatsappPhoneNumberId: "8044186875",
+        whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "689044bc84f5e822",
+        whatsappTemplateName: "resume_screener_message01",
+        whatsappLanguage: "en",
     };
     
     // Merge: Start with defaults (includes env vars), then override with database values
@@ -242,6 +250,8 @@ export default async function handler(req, res) {
       companyIdSource: settings.whatsappCompanyId !== undefined && settings.whatsappCompanyId !== "" ? 'database' : (process.env.WHATSAPP_COMPANY_ID ? 'env' : 'default'),
       rawDbApiKey: rawDbValues.whatsappApiKey !== null ? (rawDbValues.whatsappApiKey ? `***${String(rawDbValues.whatsappApiKey).slice(-4)}` : 'empty string') : 'not in DB',
       rawDbCompanyId: rawDbValues.whatsappCompanyId !== null ? (rawDbValues.whatsappCompanyId ? `***${String(rawDbValues.whatsappCompanyId).slice(-4)}` : 'empty string') : 'not in DB',
+      settingsObjectKeys: Object.keys(settings),
+      settingsObjectSize: Object.keys(settings).length,
     });
     
     return res.status(200).json({
@@ -251,7 +261,8 @@ export default async function handler(req, res) {
       _rawDb: {
         whatsappApiKey: settings.whatsappApiKey !== undefined ? settings.whatsappApiKey : null,
         whatsappCompanyId: settings.whatsappCompanyId !== undefined ? settings.whatsappCompanyId : null,
-        allSettings: settings, // Include all raw DB settings
+        allSettings: settings, // Include all raw DB settings (even if empty)
+        hasAnySettings: Object.keys(settings).length > 0,
       },
     });
   } catch (error) {
@@ -265,17 +276,17 @@ export default async function handler(req, res) {
         "📞 +91 9665079317",
       ].join("\n"),
       emailSendingEnabled: false,
-      gmailEmail: "",
-      gmailAppPassword: "",
+      gmailEmail: "careers@ikf.co.in",
+      gmailAppPassword: "qellqgrcmusuypyy",
       googleClientId: "",
       googleClientSecret: "",
       googleRefreshToken: "",
       googleSenderEmail: "",
       whatsappSendingEnabled: true,
-      whatsappApiKey: "",
+      whatsappApiKey: "9oAlpAhPvkKOGwuo6LiU8CPyRPxXSDoRVq1PFD0tkN",
       whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
-      whatsappPhoneNumberId: "690875100784871",
-      whatsappCompanyId: "",
+      whatsappPhoneNumberId: "8044186875",
+      whatsappCompanyId: "689044bc84f5e822",
       whatsappTemplateName: "resume_screener_message01",
       whatsappLanguage: "en",
     };
