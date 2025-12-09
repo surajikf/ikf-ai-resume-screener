@@ -72,12 +72,22 @@ export default async function handler(req, res) {
     if (result.data && Array.isArray(result.data)) {
       result.data.forEach(row => {
         try {
-          settings[row.setting_key] = JSON.parse(row.setting_value);
+          const parsed = JSON.parse(row.setting_value);
+          settings[row.setting_key] = parsed;
         } catch {
+          // If JSON parse fails, use the raw value
           settings[row.setting_key] = row.setting_value;
         }
       });
     }
+    
+    console.log('[settings/get] Loaded settings from database:', {
+      count: Object.keys(settings).length,
+      keys: Object.keys(settings),
+      hasApiKey: !!settings.whatsappApiKey,
+      hasCompanyId: !!settings.whatsappCompanyId,
+      hasPhoneNumberId: !!settings.whatsappPhoneNumberId,
+    });
 
     // If no settings exist or result.data is empty/undefined, initialize with defaults
     if (!result.data || !Array.isArray(result.data) || Object.keys(settings).length === 0) {

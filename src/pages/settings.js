@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { Inter } from "next/font/google";
@@ -25,23 +25,9 @@ export default function SettingsPage() {
   const [whatsappLanguage, setWhatsappLanguage] = useState("en");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
-
-  // Auto-save to database when settings change
-  useEffect(() => {
-    if (!autoSaveEnabled) return;
-    
-    const timeoutId = setTimeout(async () => {
-      await saveAllSettings();
-    }, 1000); // Debounce: save 1 second after last change
-
-    return () => clearTimeout(timeoutId);
-  }, [
-    emailSignature, emailSendingEnabled, gmailEmail, gmailAppPassword,
-    googleClientId, googleClientSecret, googleRefreshToken, googleSenderEmail,
-    whatsappSendingEnabled, whatsappApiKey, whatsappApiUrl, whatsappPhoneNumberId,
-    whatsappCompanyId, whatsappTemplateName, whatsappLanguage, autoSaveEnabled
-  ]);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false); // Start disabled until settings are loaded
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     // Load settings from database - API will auto-initialize defaults if needed
@@ -58,6 +44,13 @@ export default function SettingsPage() {
       const defaults = getSettings();
       const current = dbSettings || defaults;
       
+      console.log('[Settings] Loaded from database:', {
+        hasDbSettings: !!dbSettings,
+        hasApiKey: !!current.whatsappApiKey,
+        hasCompanyId: !!current.whatsappCompanyId,
+        allKeys: Object.keys(current),
+      });
+      
       setEmailSignature(current.emailSignature || defaults.emailSignature || "");
       setEmailSendingEnabled(current.emailSendingEnabled !== undefined ? current.emailSendingEnabled : defaults.emailSendingEnabled);
       setGmailEmail(current.gmailEmail || "");
@@ -67,19 +60,61 @@ export default function SettingsPage() {
       setGoogleRefreshToken(current.googleRefreshToken || "");
       setGoogleSenderEmail(current.googleSenderEmail || "");
       setWhatsappSendingEnabled(current.whatsappSendingEnabled !== undefined ? current.whatsappSendingEnabled : defaults.whatsappSendingEnabled);
-      setWhatsappApiKey(current.whatsappApiKey || "");
+      setWhatsappApiKey(current.whatsappApiKey || ""); // Load from database
       setWhatsappApiUrl(current.whatsappApiUrl || defaults.whatsappApiUrl);
       setWhatsappPhoneNumberId(current.whatsappPhoneNumberId || defaults.whatsappPhoneNumberId);
-      setWhatsappCompanyId(current.whatsappCompanyId || "");
+      setWhatsappCompanyId(current.whatsappCompanyId || ""); // Load from database
       setWhatsappTemplateName(current.whatsappTemplateName || defaults.whatsappTemplateName);
       setWhatsappLanguage(current.whatsappLanguage || defaults.whatsappLanguage);
+      
+      // Mark settings as loaded first
+      setSettingsLoaded(true);
+      isInitialLoad.current = false;
+      
+      // Enable auto-save after a delay to prevent triggering on initial load
+      setTimeout(() => {
+        setAutoSaveEnabled(true);
+        console.log('[Settings] Auto-save enabled, settings loaded:', {
+          hasApiKey: !!(current.whatsappApiKey),
+          hasCompanyId: !!(current.whatsappCompanyId),
+          apiKeyValue: current.whatsappApiKey ? '***' + current.whatsappApiKey.slice(-4) : 'empty',
+          companyIdValue: current.whatsappCompanyId ? '***' + current.whatsappCompanyId.slice(-4) : 'empty',
+        });
+      }, 1500); // 1.5 second delay to ensure all state is set and prevent auto-save trigger
     };
     
     loadSettings();
   }, []);
 
+  // Auto-save to database when settings change (only after initial load)
+  useEffect(() => {
+    // Don't auto-save during initial load or if auto-save is disabled
+    if (isInitialLoad.current || !autoSaveEnabled || !settingsLoaded || saving) {
+      return;
+    }
+    
+    const timeoutId = setTimeout(async () => {
+      // Double-check we're not already saving and settings are loaded
+      if (!isInitialLoad.current && !saving && settingsLoaded && autoSaveEnabled) {
+        await saveAllSettings();
+      }
+    }, 2000); // Debounce: save 2 seconds after last change
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    emailSignature, emailSendingEnabled, gmailEmail, gmailAppPassword,
+    googleClientId, googleClientSecret, googleRefreshToken, googleSenderEmail,
+    whatsappSendingEnabled, whatsappApiKey, whatsappApiUrl, whatsappPhoneNumberId,
+    whatsappCompanyId, whatsappTemplateName, whatsappLanguage
+    // Note: Don't include autoSaveEnabled, settingsLoaded, saving, or isInitialLoad in deps
+  ]);
+
   const saveAllSettings = async () => {
-    if (saving) return;
+    if (saving) {
+      console.log('[Settings] Save already in progress, skipping...');
+      return;
+    }
     
     setSaving(true);
     const settingsToSave = {
@@ -99,6 +134,13 @@ export default function SettingsPage() {
       whatsappTemplateName,
       whatsappLanguage,
     };
+
+    console.log('[Settings] Saving to database:', {
+      hasApiKey: !!settingsToSave.whatsappApiKey,
+      hasCompanyId: !!settingsToSave.whatsappCompanyId,
+      hasPhoneNumberId: !!settingsToSave.whatsappPhoneNumberId,
+      hasTemplateName: !!settingsToSave.whatsappTemplateName,
+    });
 
     try {
       await saveSettings(settingsToSave);
