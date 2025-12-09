@@ -77,10 +77,14 @@ export const getSettings = () => {
 
   // Return cached database settings if available and fresh
   if (cachedDbSettings && cacheTimestamp && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    return {
-      ...DEFAULT_SETTINGS,
-      ...cachedDbSettings,
-    };
+    // Merge: Use cached value if not empty, otherwise use default
+    const merged = { ...DEFAULT_SETTINGS };
+    for (const [key, value] of Object.entries(cachedDbSettings)) {
+      if (value !== null && value !== undefined && value !== "") {
+        merged[key] = value;
+      }
+    }
+    return merged;
   }
 
   // Fallback to localStorage
@@ -88,10 +92,14 @@ export const getSettings = () => {
     const raw = localStorage.getItem("ikfSettings");
     if (!raw) return { ...DEFAULT_SETTINGS };
     const parsed = JSON.parse(raw);
-    return {
-      ...DEFAULT_SETTINGS,
-      ...(parsed || {}),
-    };
+    // Merge: Use localStorage value if not empty, otherwise use default
+    const merged = { ...DEFAULT_SETTINGS };
+    for (const [key, value] of Object.entries(parsed)) {
+      if (value !== null && value !== undefined && value !== "") {
+        merged[key] = value;
+      }
+    }
+    return merged;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

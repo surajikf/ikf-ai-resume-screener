@@ -82,40 +82,55 @@ export default async function handler(req, res) {
       });
     }
     
-    console.log('[settings/get] Loaded settings from database:', {
-      count: Object.keys(settings).length,
-      keys: Object.keys(settings),
-      hasApiKey: !!settings.whatsappApiKey,
-      hasCompanyId: !!settings.whatsappCompanyId,
-      hasPhoneNumberId: !!settings.whatsappPhoneNumberId,
+    // Hardcoded defaults with environment variables
+    const DEFAULT_SETTINGS = {
+      emailSignature: [
+        "Best regards,",
+        "Jahanvi Patel",
+        "I Knowledge Factory Pvt. Ltd.",
+        "📞 +91 9665079317",
+      ].join("\n"),
+      emailSendingEnabled: false,
+      gmailEmail: process.env.GMAIL_EMAIL || "",
+      gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
+      googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+      googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || "",
+      googleSenderEmail: process.env.GOOGLE_SENDER_EMAIL || "",
+      whatsappSendingEnabled: true,
+      whatsappApiKey: process.env.WHATSAPP_API_KEY || "",
+      whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
+      whatsappPhoneNumberId: "690875100784871",
+      whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "",
+      whatsappTemplateName: "resume_screener_message01",
+      whatsappLanguage: "en",
+    };
+    
+    // Merge: Start with defaults (includes env vars), then override with non-empty database values
+    const mergedSettings = { ...DEFAULT_SETTINGS };
+    for (const [key, dbValue] of Object.entries(settings)) {
+      // Only use database value if it's not empty (empty string, null, undefined)
+      // This ensures env vars are not overridden by empty database values
+      if (dbValue !== null && dbValue !== undefined && dbValue !== "") {
+        mergedSettings[key] = dbValue;
+      }
+      // If database has empty string, keep the default/env var value
+    }
+    
+    console.log('[settings/get] Settings merge result:', {
+      dbSettingsCount: Object.keys(settings).length,
+      hasApiKeyInDb: !!settings.whatsappApiKey && settings.whatsappApiKey !== "",
+      hasCompanyIdInDb: !!settings.whatsappCompanyId && settings.whatsappCompanyId !== "",
+      apiKeyFromEnv: !!process.env.WHATSAPP_API_KEY,
+      companyIdFromEnv: !!process.env.WHATSAPP_COMPANY_ID,
+      finalHasApiKey: !!mergedSettings.whatsappApiKey,
+      finalHasCompanyId: !!mergedSettings.whatsappCompanyId,
+      finalApiKeyLength: mergedSettings.whatsappApiKey?.length || 0,
+      finalCompanyIdLength: mergedSettings.whatsappCompanyId?.length || 0,
     });
 
     // If no settings exist or result.data is empty/undefined, initialize with defaults
     if (!result.data || !Array.isArray(result.data) || Object.keys(settings).length === 0) {
-      // Hardcoded credentials - available by default
-      const DEFAULT_SETTINGS = {
-        emailSignature: [
-          "Best regards,",
-          "Jahanvi Patel",
-          "I Knowledge Factory Pvt. Ltd.",
-          "📞 +91 9665079317",
-        ].join("\n"),
-        emailSendingEnabled: false,
-        gmailEmail: process.env.GMAIL_EMAIL || "",
-        gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
-        googleClientId: process.env.GOOGLE_CLIENT_ID || "",
-        googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-        googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || "",
-        googleSenderEmail: process.env.GOOGLE_SENDER_EMAIL || "",
-        whatsappSendingEnabled: true,
-        whatsappApiKey: process.env.WHATSAPP_API_KEY || "",
-        whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
-        whatsappPhoneNumberId: "690875100784871",
-        whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "",
-        whatsappTemplateName: "resume_screener_message01",
-        whatsappLanguage: "en",
-      };
-
       // Save defaults to database (try, but don't fail if it doesn't work)
       try {
         for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
@@ -147,9 +162,10 @@ export default async function handler(req, res) {
       }
     }
 
+    // Return merged settings (database values + env vars/defaults)
     return res.status(200).json({
       success: true,
-      data: settings,
+      data: mergedSettings,
     });
   } catch (error) {
     console.error('Error fetching settings:', error);
