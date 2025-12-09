@@ -32,19 +32,29 @@ export const getSettingsFromDatabase = async () => {
     const response = await fetch('/api/settings/get');
     const data = await response.json();
     
-    if (data.success && Object.keys(data.data).length > 0) {
-      cachedDbSettings = data.data;
-      cacheTimestamp = Date.now();
-      // Also sync to localStorage as backup
-      if (typeof window !== "undefined") {
-        localStorage.setItem("ikfSettings", JSON.stringify(data.data));
+    if (data.success) {
+      // Always return settings (either from DB or defaults)
+      const settings = data.data || {};
+      
+      // If settings were just initialized, cache them
+      if (Object.keys(settings).length > 0) {
+        cachedDbSettings = settings;
+        cacheTimestamp = Date.now();
+        // Also sync to localStorage as backup
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ikfSettings", JSON.stringify(settings));
+        }
       }
-      return data.data;
+      
+      return settings;
     }
-    return null;
+    
+    // Fallback to defaults if API fails
+    return DEFAULT_SETTINGS;
   } catch (error) {
     console.log('Failed to load settings from database:', error);
-    return null;
+    // Return defaults on error
+    return DEFAULT_SETTINGS;
   }
 };
 
@@ -91,7 +101,7 @@ export const saveSettings = async (partialSettings) => {
   cachedDbSettings = next;
   cacheTimestamp = Date.now();
 
-  // Save to database (async, don't wait)
+  // Save to database (wait for it to complete to ensure persistence)
   try {
     const response = await fetch('/api/settings/save', {
       method: 'POST',
@@ -100,10 +110,18 @@ export const saveSettings = async (partialSettings) => {
     });
     
     if (response.ok) {
-      console.log('Settings saved to database');
+      const result = await response.json();
+      if (result.success) {
+        console.log('Settings saved to database successfully');
+      } else {
+        console.error('Database save failed:', result.error);
+      }
+    } else {
+      console.error('Database save failed with status:', response.status);
     }
   } catch (err) {
-    console.log('Database save failed:', err);
+    console.error('Database save error:', err);
+    // Don't throw - localStorage backup is already saved
   }
 };
 

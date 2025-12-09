@@ -44,8 +44,16 @@ export default function SettingsPage() {
   ]);
 
   useEffect(() => {
-    // Load settings from database first, then fallback to localStorage/defaults
+    // Load settings from database - API will auto-initialize defaults if needed
     const loadSettings = async () => {
+      // Initialize defaults in database if they don't exist
+      try {
+        await fetch('/api/settings/init', { method: 'POST' });
+      } catch (err) {
+        console.log('Settings init check failed:', err);
+      }
+      
+      // Load settings from database (will include defaults if just initialized)
       const dbSettings = await getSettingsFromDatabase();
       const defaults = getSettings();
       const current = dbSettings || defaults;
@@ -65,30 +73,6 @@ export default function SettingsPage() {
       setWhatsappCompanyId(current.whatsappCompanyId || "");
       setWhatsappTemplateName(current.whatsappTemplateName || defaults.whatsappTemplateName);
       setWhatsappLanguage(current.whatsappLanguage || defaults.whatsappLanguage);
-      
-      // Save defaults to database if no settings exist (only once)
-      if (!dbSettings || Object.keys(dbSettings).length === 0) {
-        setAutoSaveEnabled(false);
-        const settingsToSave = {
-          emailSignature: current.emailSignature || defaults.emailSignature || "",
-          emailSendingEnabled: current.emailSendingEnabled !== undefined ? current.emailSendingEnabled : defaults.emailSendingEnabled,
-          gmailEmail: current.gmailEmail || "",
-          gmailAppPassword: current.gmailAppPassword || "",
-          googleClientId: current.googleClientId || "",
-          googleClientSecret: current.googleClientSecret || "",
-          googleRefreshToken: current.googleRefreshToken || "",
-          googleSenderEmail: current.googleSenderEmail || "",
-          whatsappSendingEnabled: current.whatsappSendingEnabled !== undefined ? current.whatsappSendingEnabled : defaults.whatsappSendingEnabled,
-          whatsappApiKey: current.whatsappApiKey || "",
-          whatsappApiUrl: current.whatsappApiUrl || defaults.whatsappApiUrl,
-          whatsappPhoneNumberId: current.whatsappPhoneNumberId || defaults.whatsappPhoneNumberId,
-          whatsappCompanyId: current.whatsappCompanyId || "",
-          whatsappTemplateName: current.whatsappTemplateName || defaults.whatsappTemplateName,
-          whatsappLanguage: current.whatsappLanguage || defaults.whatsappLanguage,
-        };
-        await saveSettings(settingsToSave);
-        setTimeout(() => setAutoSaveEnabled(true), 1000);
-      }
     };
     
     loadSettings();

@@ -34,6 +34,58 @@ export default async function handler(req, res) {
       }
     });
 
+    // If no settings exist, initialize with defaults
+    if (Object.keys(settings).length === 0) {
+      const DEFAULT_SETTINGS = {
+        emailSignature: [
+          "Best regards,",
+          "Jahanvi Patel",
+          "I Knowledge Factory Pvt. Ltd.",
+          "📞 +91 9665079317",
+        ].join("\n"),
+        emailSendingEnabled: false,
+        gmailEmail: "",
+        gmailAppPassword: "",
+        googleClientId: "",
+        googleClientSecret: "",
+        googleRefreshToken: "",
+        googleSenderEmail: "",
+        whatsappSendingEnabled: true,
+        whatsappApiKey: "",
+        whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
+        whatsappPhoneNumberId: "690875100784871",
+        whatsappCompanyId: "",
+        whatsappTemplateName: "resume_screener_message01",
+        whatsappLanguage: "en",
+      };
+
+      // Save defaults to database
+      try {
+        for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+          await query(
+            `INSERT INTO settings (setting_key, setting_value) 
+             VALUES (?, ?) 
+             ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()`,
+            [key, JSON.stringify(value), JSON.stringify(value)]
+          );
+        }
+        // Return defaults
+        return res.status(200).json({
+          success: true,
+          data: DEFAULT_SETTINGS,
+          initialized: true,
+        });
+      } catch (initError) {
+        console.error('Failed to initialize defaults:', initError);
+        // Still return defaults even if save fails
+        return res.status(200).json({
+          success: true,
+          data: DEFAULT_SETTINGS,
+          initialized: false,
+        });
+      }
+    }
+
     return res.status(200).json({
       success: true,
       data: settings,

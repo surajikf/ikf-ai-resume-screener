@@ -246,17 +246,22 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // Load UI settings from database first, fallback to localStorage
+    // Load UI settings from database - will auto-initialize defaults if needed
     const loadSettings = async () => {
       try {
+        // Initialize defaults in database if they don't exist (silent, don't wait)
+        fetch('/api/settings/init', { method: 'POST' }).catch(() => {});
+        
+        // Load settings from database (API will auto-initialize if empty)
         const response = await fetch('/api/settings/get');
         const data = await response.json();
         
-        if (data.success && Object.keys(data.data).length > 0) {
-          setSettings(data.data);
+        if (data.success) {
+          const settingsData = data.data || {};
+          setSettings(settingsData);
           // Also sync to localStorage as backup
           if (typeof window !== "undefined") {
-            localStorage.setItem("ikfSettings", JSON.stringify(data.data));
+            localStorage.setItem("ikfSettings", JSON.stringify(settingsData));
           }
         } else {
           // Fallback to localStorage
