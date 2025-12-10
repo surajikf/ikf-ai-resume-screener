@@ -73,20 +73,28 @@ const UploadPanel = ({
     }
 
     setError("");
-    setStatus(`Evaluating ${resumeFiles.length} resume(s)...`);
+    setStatus(`Starting evaluation of ${resumeFiles.length} resume(s)... Results will appear below as they complete.`);
 
-    const failures = [];
+    // Run all evaluations in parallel - results will appear one by one
+    const evaluationPromises = resumeFiles.map(file => 
+      onEvaluate({ resumeFile: file }).catch(error => {
+        return { file, error: error.message };
+      })
+    );
 
-    for (const file of resumeFiles) {
-      try {
-        await onEvaluate({ resumeFile: file });
-      } catch (evaluationError) {
-        failures.push({ file, message: evaluationError.message });
-      }
-    }
+    // Wait for all to complete (but results appear as they finish)
+    const results = await Promise.allSettled(evaluationPromises);
+    
+    const failures = results
+      .filter(result => result.status === 'rejected' || (result.value && result.value.error))
+      .map(result => ({
+        file: result.status === 'rejected' ? { name: 'Unknown' } : result.value.file,
+        message: result.status === 'rejected' ? result.reason?.message || 'Unknown error' : result.value.error
+      }));
 
     if (failures.length === 0) {
-      setStatus(`Successfully evaluated ${resumeFiles.length} resume(s).`);
+      setStatus(`All ${resumeFiles.length} resume(s) evaluated successfully!`);
+      setTimeout(() => setStatus(""), 3000);
     } else if (failures.length === resumeFiles.length) {
       setError(
         `Failed to evaluate all resumes. Last error: ${

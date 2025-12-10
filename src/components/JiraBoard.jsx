@@ -32,16 +32,40 @@ const columnConfig = [
   },
 ];
 
-const JiraBoard = ({ evaluations, onSelectCandidate, onViewResume, onBulkSendEmail, onBulkSendWhatsApp, canSendEmail, canSendWhatsApp, settings }) => {
+const JiraBoard = ({ evaluations, onSelectCandidate, onViewResume, onBulkSendEmail, onBulkSendWhatsApp, canSendEmail, canSendWhatsApp, settings, evaluatingFiles = new Map() }) => {
   const [bulkSending, setBulkSending] = useState({});
   const [bulkStatus, setBulkStatus] = useState({});
   const [bulkModal, setBulkModal] = useState({ isOpen: false, type: null, candidates: null });
+  
+  // Create loading placeholders for files being evaluated
+  // Safely handle Map - check if it's actually a Map instance
+  let loadingEvaluations = [];
+  try {
+    if (evaluatingFiles && typeof evaluatingFiles === 'object' && evaluatingFiles.size !== undefined && evaluatingFiles.entries) {
+      const entries = Array.from(evaluatingFiles.entries());
+      loadingEvaluations = entries
+        .filter(([_, status]) => status && status.status === 'evaluating')
+        .map(([fileName, status]) => ({
+          id: `loading-${fileName}`,
+          candidateName: fileName.replace(/\.[^/.]+$/, ""), // Remove file extension
+          verdict: null, // Will show as loading
+          matchScore: 0,
+          isLoading: true,
+          progress: status.progress || 'Evaluating...',
+        }));
+    }
+  } catch (err) {
+    // Silently fail if Map operations don't work (e.g., during SSR)
+    console.log('Error processing evaluatingFiles:', err);
+  }
+  
   const grouped = columnConfig.map((column) => ({
     ...column,
     items: evaluations.filter((item) => item.verdict === column.key),
   }));
-
+  
   const hasAnyCandidates = evaluations.length > 0;
+  const hasLoadingItems = loadingEvaluations.length > 0;
 
   const handleBulkEmail = (status, candidates) => {
     if (!canSendEmail) {
@@ -102,7 +126,7 @@ const JiraBoard = ({ evaluations, onSelectCandidate, onViewResume, onBulkSendEma
   };
 
   return (
-    <section className="flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <section className="flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white" data-kanban-section>
       <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <h2 className="text-lg font-semibold text-slate-900">
           Candidates
@@ -112,14 +136,47 @@ const JiraBoard = ({ evaluations, onSelectCandidate, onViewResume, onBulkSendEma
         </span>
       </header>
 
-      {!hasAnyCandidates ? (
+      {!hasAnyCandidates && !hasLoadingItems ? (
         <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-16 text-center">
           <p className="text-sm text-slate-500">
             No candidates yet. Upload resumes and run evaluation to get started.
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 overflow-x-auto px-6 py-6 lg:grid-cols-3">
+        <div className={`grid gap-4 overflow-x-auto px-6 py-6 ${hasLoadingItems ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
+          {/* Loading Column - Show evaluating resumes */}
+          {hasLoadingItems && (
+            <div className="flex min-h-[420px] flex-col gap-3 rounded-lg bg-slate-50 p-3">
+              <div className="rounded-lg border px-4 py-2.5 border-blue-200 bg-blue-50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <FaSpinner className="text-blue-500 animate-spin" />
+                    <span className="text-sm font-semibold text-slate-700">Evaluating...</span>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                    {loadingEvaluations.length}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-1 flex-col gap-3">
+                {loadingEvaluations.map((loadingItem) => (
+                  <div
+                    key={loadingItem.id}
+                    className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-white p-3 opacity-75"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FaSpinner className="text-blue-500 animate-spin" />
+                      <h4 className="text-base font-semibold text-slate-700 truncate">
+                        {loadingItem.candidateName}
+                      </h4>
+                    </div>
+                    <p className="text-xs text-slate-500">{loadingItem.progress}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           {grouped.map((column) => (
             <div
               key={column.key}

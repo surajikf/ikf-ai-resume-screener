@@ -43,7 +43,7 @@ const getScoreBg = (score) => {
   return "bg-red-50 border-red-200";
 };
 
-const CandidateCard = ({ candidate, onSelect, onViewResume }) => {
+const CandidateCard = ({ candidate, onSelect, onViewResume, isLoading }) => {
   const styles = verdictStyles[candidate.verdict] || verdictStyles["Not Suitable"];
   const matchScore = candidate.matchScore || 0;
   const scoreColor = getScoreColor(matchScore);
@@ -57,6 +57,21 @@ const CandidateCard = ({ candidate, onSelect, onViewResume }) => {
   const tenureMonths = candidate.tenureMonthsOne || 0;
   const scoreBreakdown = candidate.scoreBreakdown || {};
 
+  // Show loading state if evaluating
+  if (isLoading) {
+    return (
+      <article className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-white p-3 opacity-75">
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600"></div>
+          <h4 className="text-base font-semibold text-slate-700 truncate">
+            {candidate.candidateName || "Evaluating..."}
+          </h4>
+        </div>
+        <p className="text-xs text-slate-500">Processing resume...</p>
+      </article>
+    );
+  }
+  
   return (
     <article
       className={`flex flex-col gap-2 rounded-lg border ${styles.border} bg-white p-3 hover:border-blue-300`}

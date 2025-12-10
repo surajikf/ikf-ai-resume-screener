@@ -18,6 +18,7 @@ import {
 } from "@/utils/candidateHistory";
 import { getSettings } from "@/utils/settingsStorage";
 import { getEvaluations as getStoredEvaluations, saveEvaluations, addEvaluation, clearEvaluations } from "@/utils/evaluationStorage";
+import { syncEvaluationsToSupabase, syncJobDescriptionsToSupabase } from "@/utils/syncToSupabase";
 
 // Helper function to convert duration string to months
 const durationToMonths = (duration) => {
@@ -107,7 +108,8 @@ export default function Home() {
   const [jobTitle, setJobTitle] = useState("");
   const [jdHistory, setJdHistory] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Keep for backward compatibility but won't show full-screen
+  const [evaluatingFiles, setEvaluatingFiles] = useState(new Map()); // Track individual file evaluations: Map<fileName, {status: 'evaluating'|'done'|'error', progress?: string}>
   const [globalError, setGlobalError] = useState("");
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
@@ -243,6 +245,33 @@ export default function Home() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+  }, []);
+
+  // Auto-sync localStorage to Supabase on page load (after initial load)
+  useEffect(() => {
+    // Wait a bit after page load to sync
+    const syncTimer = setTimeout(async () => {
+      try {
+        // Sync evaluations
+        const evalSyncResult = await syncEvaluationsToSupabase();
+        if (evalSyncResult.success && evalSyncResult.synced > 0) {
+          console.log(`✅ Synced ${evalSyncResult.synced} evaluation(s) to Supabase`);
+          // Reload evaluations to get database IDs
+          loadEvaluations(false);
+        }
+
+        // Sync job descriptions
+        const jdSyncResult = await syncJobDescriptionsToSupabase();
+        if (jdSyncResult.success && jdSyncResult.synced > 0) {
+          console.log(`✅ Synced ${jdSyncResult.synced} job description(s) to Supabase`);
+        }
+      } catch (error) {
+        console.error('Auto-sync error:', error);
+        // Don't show error to user - sync is background operation
+      }
+    }, 3000); // Wait 3 seconds after page load
+
+    return () => clearTimeout(syncTimer);
   }, []);
 
   useEffect(() => {
@@ -963,7 +992,15 @@ export default function Home() {
   };
 
   const handleEvaluate = async ({ resumeFile }) => {
-    setLoading(true);
+    const fileName = resumeFile.name || `resume_${Date.now()}`;
+    
+    // Mark this file as evaluating (no full-screen loader)
+    setEvaluatingFiles(prev => {
+      const newMap = new Map(prev);
+      newMap.set(fileName, { status: 'evaluating', progress: 'Processing resume...' });
+      return newMap;
+    });
+    
     setGlobalError("");
 
     try {
@@ -1168,23 +1205,48 @@ export default function Home() {
       // Save candidate to history (localStorage fallback)
       saveCandidateEvaluation(candidateName, roleApplied, evaluation.id, evaluation.createdAt);
 
-      // Add to state and localStorage
+      // Mark evaluation as complete first (removes from loading column)
+      setEvaluatingFiles(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(fileName); // Remove from evaluating list
+        return newMap;
+      });
+      
+      // Add to state and localStorage (appears in kanban immediately)
       setEvaluations((prev) => {
         const updated = [evaluation, ...prev];
         // Save to localStorage immediately for session persistence
         saveEvaluations(updated);
         return updated;
       });
+
+      // If database save failed, mark for sync later
+      if (!evaluation.databaseId) {
+        console.log('⚠️ Evaluation saved to localStorage but not to database. Will sync on next page load.');
+      }
+      
+      // Scroll kanban into view so user sees the new result
+      setTimeout(() => {
+        const kanbanElement = document.querySelector('[data-kanban-section]');
+        if (kanbanElement) {
+          kanbanElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
       
       // Note: JD is NOT automatically saved after evaluation
       // User must explicitly click "Save JD" button to save it
-
+      
       return evaluation;
     } catch (error) {
+      // Mark evaluation as error
+      setEvaluatingFiles(prev => {
+        const newMap = new Map(prev);
+        newMap.set(fileName, { status: 'error', error: error.message });
+        return newMap;
+      });
+      
       setGlobalError(error.message || "Unable to evaluate resume.");
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1267,16 +1329,7 @@ export default function Home() {
             </div>
           </header>
 
-          {/* Loading Overlay */}
-          {loading && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/95">
-              <div className="flex flex-col items-center justify-center text-center">
-                <div className="h-12 w-12 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600 mb-4"></div>
-                <p className="text-base font-medium text-slate-700">Evaluating Resume...</p>
-                <p className="text-sm text-slate-500 mt-1">This may take a few moments</p>
-              </div>
-            </div>
-          )}
+          {/* Loading Overlay - REMOVED: No full-screen loader, results appear in kanban */}
 
           <div className="flex flex-col gap-6 pb-12">
             {/* Main Workflow */}
@@ -1373,6 +1426,7 @@ export default function Home() {
                 
                 <JiraBoard
                   evaluations={boardEvaluations}
+                  evaluatingFiles={evaluatingFiles}
                   onSelectCandidate={setSelectedEvaluation}
                   onViewResume={(candidate) => setSelectedResume(candidate)}
                   onBulkSendEmail={handleBulkSendEmail}
