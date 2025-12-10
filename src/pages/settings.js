@@ -317,28 +317,28 @@ export default function SettingsPage() {
       <Head>
         <title>Settings - IKF AI Resume Screener</title>
       </Head>
-      <main className={`min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 ${inter.className}`}>
-        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-6 py-4">
+      <main className={`min-h-screen bg-slate-50 ${inter.className}`}>
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
-          <header className="mb-4">
-            <div className="flex items-center justify-between mb-3">
+          <header className="mb-8">
+            <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
                 <Link
                   href="/"
-                  className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
                 >
                   <FaArrowLeft className="text-sm" />
                 </Link>
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-                  <p className="text-sm text-slate-600 mt-1">Configure email and WhatsApp messaging</p>
+                  <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
+                  <p className="text-sm text-slate-500 mt-1">Configure email and WhatsApp messaging</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={handleFetchFromDatabase}
                   disabled={loading || saving}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-blue-200"
                   title="Fetch all credentials from database"
                 >
                   <FaSync className={`text-xs ${loading ? 'animate-spin' : ''}`} />
@@ -347,7 +347,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleManualSave}
                   disabled={saving || loading}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   <FaSave className="text-xs" />
                   {saving ? "Saving..." : "Save Now"}
@@ -356,148 +356,148 @@ export default function SettingsPage() {
             </div>
             
             {saved && (
-              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
-                <FaCheckCircle />
+              <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-50/80 border border-emerald-200/60 text-emerald-700 text-sm">
+                <FaCheckCircle className="text-emerald-600" />
                 <span>{loading ? "Credentials fetched from database successfully!" : "Settings saved successfully to database!"}</span>
               </div>
             )}
             
             {loadedFromDb && !saved && (
-              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
-                <FaCheckCircle />
+              <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-blue-50/80 border border-blue-200/60 text-blue-700 text-sm">
+                <FaCheckCircle className="text-blue-600" />
                 <span>Credentials loaded from database automatically</span>
               </div>
             )}
             
             {autoSaveEnabled && !saved && !loadedFromDb && (
-              <div className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+              <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
                 <FaInfoCircle className="text-slate-400" />
                 <span>Auto-save enabled - changes are saved automatically to database</span>
               </div>
             )}
           </header>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-3">
+            <div className="lg:col-span-2 space-y-6">
               {/* Email Signature */}
-              <section className="bg-white rounded-lg border border-slate-200 shadow-sm p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <FaSignature className="text-blue-600 text-sm" />
-                    </div>
+              <section className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                    <FaSignature className="text-purple-600 text-base" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <h2 className="text-base font-semibold text-slate-900">Email Signature</h2>
-                    <p className="text-xs text-slate-500">Added automatically to all email drafts</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Added automatically to all email drafts</p>
                   </div>
                 </div>
-            <textarea
-                  rows={3}
-              value={emailSignature}
-              onChange={(e) => setEmailSignature(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-100 transition"
+                <textarea
+                  rows={4}
+                  value={emailSignature}
+                  onChange={(e) => setEmailSignature(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 transition-all placeholder:text-slate-400"
                   placeholder="Best regards,\nJahanvi Patel\nI Knowledge Factory Pvt. Ltd.\n📞 +91 9665079317"
-                    />
-          </section>
+                />
+              </section>
 
               {/* Email Sending */}
-              <section className="bg-white rounded-lg border border-slate-200 shadow-sm p-3">
-                <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                      <FaEnvelope className="text-emerald-600 text-sm" />
+              <section className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <FaEnvelope className="text-blue-600 text-base" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h2 className="text-base font-semibold text-slate-900">Email Sending</h2>
-                      <p className="text-xs text-slate-500">Gmail API configuration</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Gmail API configuration</p>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input
-                type="checkbox"
-                        className="sr-only peer"
-                checked={emailSendingEnabled}
-                onChange={(e) => setEmailSendingEnabled(e.target.checked)}
-              />
-                    <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-            </label>
-                  </div>
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={emailSendingEnabled}
+                      onChange={(e) => setEmailSendingEnabled(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
 
-                  {emailSendingEnabled && (
-                  <div className="space-y-2 pt-2 border-t border-slate-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          Gmail Email <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
-                            </label>
-                            <input
-                              type="email"
-                              value={gmailEmail}
-                              onChange={(e) => setGmailEmail(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-100 transition"
-                            />
-                          </div>
-                          <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          App Password <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
-                            </label>
-                            <input
-                              type="password"
-                              value={gmailAppPassword}
-                              onChange={(e) => setGmailAppPassword(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:bg-white focus:ring-1 focus:ring-emerald-100 transition"
+                {emailSendingEnabled && (
+                  <div className="space-y-4 pt-4 border-t border-slate-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-2">
+                          Gmail Email <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                        </label>
+                        <input
+                          type="email"
+                          value={gmailEmail}
+                          onChange={(e) => setGmailEmail(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-2">
+                          App Password <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                        </label>
+                        <input
+                          type="password"
+                          value={gmailAppPassword}
+                          onChange={(e) => setGmailAppPassword(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
                         />
                       </div>
                             </div>
                             
                     <details className="group">
-                      <summary className="cursor-pointer text-xs font-medium text-slate-700 hover:text-slate-900 py-1">
+                      <summary className="cursor-pointer text-xs font-medium text-slate-700 hover:text-slate-900 py-2">
                         Advanced: OAuth 2.0 Configuration
                       </summary>
-                      <div className="mt-2 space-y-2 p-2 bg-slate-50 rounded-lg">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">
-                              Client ID <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
-                              </label>
-                              <input
-                                type="text"
-                                value={googleClientId}
-                                onChange={(e) => setGoogleClientId(e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100 transition"
-                              />
-                            </div>
-                            <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">
-                              Client Secret <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
-                              </label>
-                              <input
-                                type="password"
-                                value={googleClientSecret}
-                                onChange={(e) => setGoogleClientSecret(e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100 transition"
-                              />
-                            </div>
-                            <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">
-                              Refresh Token <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
-                              </label>
-                                <input
-                                  type="password"
-                                  value={googleRefreshToken}
-                                  onChange={(e) => setGoogleRefreshToken(e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100 transition"
+                      <div className="mt-3 space-y-4 p-4 bg-slate-50/50 rounded-lg border border-slate-100">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-2">
+                              Client ID <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={googleClientId}
+                              onChange={(e) => setGoogleClientId(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
                             />
-                            </div>
-                            <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">
-                              Sender Email <span className="text-xs text-slate-500 font-normal">(Saved to DB)</span>
-                              </label>
-                              <input
-                                type="email"
-                                value={googleSenderEmail}
-                                onChange={(e) => setGoogleSenderEmail(e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100 transition"
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-2">
+                              Client Secret <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                            </label>
+                            <input
+                              type="password"
+                              value={googleClientSecret}
+                              onChange={(e) => setGoogleClientSecret(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-2">
+                              Refresh Token <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                            </label>
+                            <input
+                              type="password"
+                              value={googleRefreshToken}
+                              onChange={(e) => setGoogleRefreshToken(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-2">
+                              Sender Email <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                            </label>
+                            <input
+                              type="email"
+                              value={googleSenderEmail}
+                              onChange={(e) => setGoogleSenderEmail(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
                             />
                           </div>
                         </div>
@@ -508,121 +508,123 @@ export default function SettingsPage() {
               </section>
 
               {/* WhatsApp Messaging */}
-              <section className="bg-white rounded-lg border border-slate-200 shadow-sm p-3">
-                <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <FaWhatsapp className="text-green-600 text-sm" />
+              <section className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <FaWhatsapp className="text-green-600 text-base" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h2 className="text-base font-semibold text-slate-900">WhatsApp Messaging</h2>
-                      <p className="text-xs text-slate-500">MyOperator API configuration</p>
+                      <p className="text-xs text-slate-500 mt-0.5">MyOperator API configuration</p>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={whatsappSendingEnabled}
-                        onChange={(e) => setWhatsappSendingEnabled(e.target.checked)}
-                      />
-                    <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
-                    </label>
-                  </div>
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={whatsappSendingEnabled}
+                      onChange={(e) => setWhatsappSendingEnabled(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                  </label>
+                </div>
 
-                  {whatsappSendingEnabled && (
-                  <div className="space-y-2 pt-2 border-t border-slate-200">
-                    <div className="p-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="text-xs text-blue-800">
-                        <FaInfoCircle className="inline mr-1 text-xs" />
+                {whatsappSendingEnabled && (
+                  <div className="space-y-4 pt-4 border-t border-slate-200">
+                    <div className="p-3 bg-blue-50/80 border border-blue-200/60 rounded-lg">
+                      <p className="text-xs text-blue-800 leading-relaxed">
+                        <FaInfoCircle className="inline mr-1.5 text-blue-500" />
                         All credentials are automatically saved to the database when you enter them. They will be automatically loaded when you access this page on Vercel - no need to enter them again!
-                            </p>
-                      </div>
+                      </p>
+                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          <FaLock className="inline mr-1 text-slate-400 text-xs" />
-                          API Key * <span className="text-xs text-slate-500 font-normal">(Saved to DB - Auto-loads on Vercel)</span>
-                          </label>
-                          <input
-                            type="password"
-                            value={whatsappApiKey}
-                            onChange={(e) => setWhatsappApiKey(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-100 transition"
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-2">
+                          <FaLock className="inline mr-1.5 text-amber-500 text-xs" />
+                          API Key * <span className="text-xs text-slate-400 font-normal">(Saved to DB - Auto-loads on Vercel)</span>
+                        </label>
+                        <input
+                          type="password"
+                          value={whatsappApiKey}
+                          onChange={(e) => setWhatsappApiKey(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-green-400 focus:bg-white focus:ring-2 focus:ring-green-100 transition-all placeholder:text-slate-400"
                           placeholder="Enter API Key"
                         />
                         {whatsappApiKey && (
-                          <p className="mt-0.5 text-xs text-green-600">
+                          <p className="mt-1.5 text-xs text-green-600">
                             ✓ {whatsappApiKey.length} chars {loadedFromDb && whatsappApiKey && <span className="text-blue-600">(Loaded from DB)</span>}
                           </p>
                         )}
-                        </div>
-                        <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          <FaPhone className="inline mr-1 text-slate-400 text-xs" />
-                            Phone Number ID *
-                          </label>
-                          <input
-                            type="text"
-                            value={whatsappPhoneNumberId}
-                            onChange={(e) => setWhatsappPhoneNumberId(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-100 transition"
-                            placeholder="690875100784871"
-                          />
-                        </div>
-                        <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          <FaGlobe className="inline mr-1 text-slate-400 text-xs" />
-                          Company ID * <span className="text-xs text-slate-500 font-normal">(Saved to DB - Auto-loads on Vercel)</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={whatsappCompanyId}
-                            onChange={(e) => setWhatsappCompanyId(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-100 transition"
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-2">
+                          <FaPhone className="inline mr-1.5 text-blue-500 text-xs" />
+                          Phone Number ID *
+                        </label>
+                        <input
+                          type="text"
+                          value={whatsappPhoneNumberId}
+                          onChange={(e) => setWhatsappPhoneNumberId(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-green-400 focus:bg-white focus:ring-2 focus:ring-green-100 transition-all placeholder:text-slate-400"
+                          placeholder="690875100784871"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-2">
+                          <FaGlobe className="inline mr-1.5 text-indigo-500 text-xs" />
+                          Company ID * <span className="text-xs text-slate-400 font-normal">(Saved to DB - Auto-loads on Vercel)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={whatsappCompanyId}
+                          onChange={(e) => setWhatsappCompanyId(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-green-400 focus:bg-white focus:ring-2 focus:ring-green-100 transition-all placeholder:text-slate-400"
                           placeholder="Enter Company ID"
                         />
                         {whatsappCompanyId && (
-                          <p className="mt-0.5 text-xs text-green-600">
+                          <p className="mt-1.5 text-xs text-green-600">
                             ✓ Configured {loadedFromDb && whatsappCompanyId && <span className="text-blue-600">(Loaded from DB)</span>}
                           </p>
                         )}
                       </div>
-                        <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          <FaGlobe className="inline mr-1 text-slate-400 text-xs" />
-                            Template Name *
-                          </label>
-                          <input
-                            type="text"
-                            value={whatsappTemplateName}
-                            onChange={(e) => setWhatsappTemplateName(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-100 transition"
-                            placeholder="resume_screener_message01"
-                          />
-                        </div>
-                        <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                            Language Code
-                          </label>
-                          <input
-                            type="text"
-                            value={whatsappLanguage}
-                            onChange={(e) => setWhatsappLanguage(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-100 transition"
-                            placeholder="en"
-                          />
-            </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                        <label className="block text-xs font-medium text-slate-700 mb-2">
+                          <FaGlobe className="inline mr-1.5 text-teal-500 text-xs" />
+                          Template Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={whatsappTemplateName}
+                          onChange={(e) => setWhatsappTemplateName(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-green-400 focus:bg-white focus:ring-2 focus:ring-green-100 transition-all placeholder:text-slate-400"
+                          placeholder="resume_screener_message01"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-2">
+                          <FaGlobe className="inline mr-1.5 text-cyan-500 text-xs" />
+                          Language Code
+                        </label>
+                        <input
+                          type="text"
+                          value={whatsappLanguage}
+                          onChange={(e) => setWhatsappLanguage(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-green-400 focus:bg-white focus:ring-2 focus:ring-green-100 transition-all placeholder:text-slate-400"
+                          placeholder="en"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-2">
+                          <FaGlobe className="inline mr-1.5 text-violet-500 text-xs" />
                           API Endpoint URL
                         </label>
                         <input
                           type="text"
                           value={whatsappApiUrl}
                           onChange={(e) => setWhatsappApiUrl(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-100 transition"
+                          className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-green-400 focus:bg-white focus:ring-2 focus:ring-green-100 transition-all placeholder:text-slate-400"
                           placeholder="https://publicapi.myoperator.co/chat/messages"
                         />
                       </div>
@@ -634,21 +636,21 @@ export default function SettingsPage() {
 
             {/* Sidebar */}
             <div className="lg:col-span-1">
-              <div className="sticky top-6">
-                <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-3">
-                  <h3 className="text-xs font-semibold text-slate-900 mb-2">Quick Info</h3>
-                  <div className="space-y-2 text-xs text-slate-600">
+              <div className="sticky top-8">
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-4">Quick Info</h3>
+                  <div className="space-y-5 text-xs text-slate-600">
                     <div>
-                      <p className="font-medium text-slate-900 mb-0.5 text-xs">Database Storage</p>
-                      <p className="text-xs">Settings saved to database persist across deployments.</p>
+                      <p className="font-medium text-slate-900 mb-1.5 text-xs">Database Storage</p>
+                      <p className="text-xs leading-relaxed text-slate-500">Settings saved to database persist across deployments.</p>
                     </div>
                     <div>
-                      <p className="font-medium text-slate-900 mb-0.5 text-xs">Auto-Save</p>
-                      <p className="text-xs">Changes saved automatically after you stop typing.</p>
+                      <p className="font-medium text-slate-900 mb-1.5 text-xs">Auto-Save</p>
+                      <p className="text-xs leading-relaxed text-slate-500">Changes saved automatically after you stop typing.</p>
                     </div>
                     <div>
-                      <p className="font-medium text-slate-900 mb-0.5 text-xs">Credentials</p>
-                      <p className="text-xs">All credentials saved locally are automatically stored in the database and will be fetched automatically when you access the Vercel link. No need to enter them again!</p>
+                      <p className="font-medium text-slate-900 mb-1.5 text-xs">Credentials</p>
+                      <p className="text-xs leading-relaxed text-slate-500">All credentials saved locally are automatically stored in the database and will be fetched automatically when you access the Vercel link. No need to enter them again!</p>
                     </div>
                   </div>
                 </div>

@@ -8,6 +8,7 @@ import {
   FaCheck,
   FaTimes,
 } from "react-icons/fa";
+import { confirm, alert as swalAlert } from "@/utils/swal";
 
 const JDHistoryPanel = ({ jdHistory, onUseJD, onDeleteJD, onClearJDs, onUpdateJD }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,7 +54,7 @@ const JDHistoryPanel = ({ jdHistory, onUseJD, onDeleteJD, onClearJDs, onUpdateJD
     e.preventDefault();
     const newTitle = editTitle.trim();
     if (!newTitle) {
-      alert("Title cannot be empty");
+      await swalAlert("Validation Error", "Title cannot be empty", "warning");
       return;
     }
     
@@ -82,12 +83,12 @@ const JDHistoryPanel = ({ jdHistory, onUseJD, onDeleteJD, onClearJDs, onUpdateJD
         }
       } catch (error) {
         console.error("Error updating JD:", error);
-        alert("Failed to update JD title. Please try again.");
+        await swalAlert("Update Failed", "Failed to update JD title. Please try again.", "error");
         return;
       }
     } else {
       console.error("onUpdateJD callback is not provided");
-      alert("Update function not available. Please refresh the page.");
+      await swalAlert("Error", "Update function not available. Please refresh the page.", "error");
       return;
     }
     
@@ -265,9 +266,16 @@ const JDHistoryPanel = ({ jdHistory, onUseJD, onDeleteJD, onClearJDs, onUpdateJD
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        if (typeof window !== "undefined" && window.confirm(`Delete "${jd.title}"?`)) {
+                        const confirmed = await confirm(
+                          'Delete Job Description?',
+                          `Are you sure you want to delete "<strong>${jd.title}</strong>"?<br><br><small>This action cannot be undone.</small>`,
+                          'Delete',
+                          'Cancel',
+                          'warning'
+                        );
+                        if (confirmed) {
                           onDeleteJD(jd);
                         }
                       }}

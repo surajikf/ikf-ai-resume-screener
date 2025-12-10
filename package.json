@@ -22,7 +22,9 @@
     "pdf-parse": "1.1.1",
     "react": "^18",
     "react-dom": "^18",
-    "react-icons": "^5.5.0"
+    "react-icons": "^5.5.0",
+    "sass": "^1.95.1",
+    "sweetalert2": "^11.26.4"
   },
   "devDependencies": {
     "eslint": "^8",

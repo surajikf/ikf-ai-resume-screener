@@ -20,6 +20,7 @@ import { getSettings } from "@/utils/settingsStorage";
 import { getEvaluations as getStoredEvaluations, saveEvaluations, addEvaluation, clearEvaluations } from "@/utils/evaluationStorage";
 import { syncEvaluationsToSupabase, syncJobDescriptionsToSupabase } from "@/utils/syncToSupabase";
 import { formatErrorMessage, logError, validateEvaluation, validateJobDescription, validateFile, safeAsync } from "@/utils/errorHandler";
+import { confirm, prompt, alert as swalAlert } from "@/utils/swal";
 
 // Helper function to convert duration string to months
 const durationToMonths = (duration) => {
@@ -439,29 +440,35 @@ export default function Home() {
     let finalTitle = suggestedTitle;
     
     if (existingJD) {
-      const update = typeof window !== "undefined" && window.confirm(
-        `A job description with the title "${existingJD.title}" already exists.\n\n` +
-        `Do you want to update it with the current content?\n\n` +
-        `Click "OK" to update, or "Cancel" to create a new one with a different title.`
+      const update = await confirm(
+        'Job Description Already Exists',
+        `A job description with the title "<strong>${existingJD.title}</strong>" already exists.<br><br>Do you want to update it with the current content?<br><br><small>Click "Update" to replace, or "Cancel" to create a new one with a different title.</small>`,
+        'Update',
+        'Cancel',
+        'question'
       );
       
       if (update) {
         finalTitle = existingJD.title;
       } else {
         // Ask for new title
-        const newTitle = typeof window !== "undefined" && window.prompt(
-          "Enter a new title for this job description:",
-          suggestedTitle
+        const newTitle = await prompt(
+          'Enter New Title',
+          'Enter a new title for this job description:',
+          suggestedTitle,
+          'Job description title'
         );
         if (!newTitle || !newTitle.trim()) return;
         finalTitle = newTitle.trim();
       }
     } else if (jobTitle && jobTitle !== suggestedTitle) {
       // If we have a detected title that's different, ask user
-      const useDetected = typeof window !== "undefined" && window.confirm(
-        `Suggested title: "${suggestedTitle}"\n\n` +
-        `Detected title: "${jobTitle}"\n\n` +
-        `Use suggested title? (Click "Cancel" to use detected title)`
+      const useDetected = await confirm(
+        'Choose Title',
+        `Suggested title: "<strong>${suggestedTitle}</strong>"<br><br>Detected title: "<strong>${jobTitle}</strong>"<br><br>Use suggested title?`,
+        'Use Suggested',
+        'Use Detected',
+        'question'
       );
       
       if (!useDetected) {
@@ -540,17 +547,69 @@ export default function Home() {
     setGlobalError("");
   };
 
-  const handleDeleteJD = (jd) => {
-    deleteJD(jd.title);
-    setJdHistory(getJDs());
-    
-    // Also delete from database
+  const handleDeleteJD = async (jd) => {
+    // Delete from localStorage (by title for localStorage entries, or by id if available)
     if (jd.id) {
-      fetch('/api/job-descriptions/delete', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: jd.id }),
-      }).catch(err => console.log('Database delete failed:', err));
+      // If it has an ID, it's from database - delete from localStorage by matching title
+      deleteJD(jd.title);
+    } else {
+      // If no ID, it's only in localStorage
+      deleteJD(jd.title);
+    }
+    
+    // Delete from database if it has an ID
+    if (jd.id) {
+      try {
+        const response = await fetch('/api/job-descriptions/delete', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: jd.id }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Database delete failed:', errorData);
+        }
+      } catch (err) {
+        console.error('Database delete failed:', err);
+      }
+    }
+    
+    // Reload JDs from both sources
+    const localJDs = getJDs();
+    try {
+      const response = await fetch('/api/job-descriptions/list');
+      const data = await response.json();
+      
+      if (data.success && data.data.length > 0) {
+        const dbJDs = data.data.map(jd => ({
+          title: jd.title,
+          content: jd.content,
+          id: jd.id,
+          date: jd.createdAt || jd.created_at,
+        }));
+        
+        // Merge and deduplicate (prefer database entries)
+        const mergedJDs = [...dbJDs];
+        localJDs.forEach(localJD => {
+          // Only add if not already in database (by id or title match)
+          if (!mergedJDs.find(jd => 
+            (jd.id && localJD.id && jd.id === localJD.id) || 
+            (jd.title === localJD.title && jd.content === localJD.content)
+          )) {
+            mergedJDs.push(localJD);
+          }
+        });
+        
+        setJdHistory(mergedJDs);
+      } else {
+        // No database JDs, just use localStorage
+        setJdHistory(localJDs);
+      }
+    } catch (err) {
+      console.error('Failed to reload JDs from database:', err);
+      // Fallback to localStorage only
+      setJdHistory(localJDs);
     }
   };
 
@@ -964,13 +1023,12 @@ export default function Home() {
     };
   };
 
-  const handleResetScan = () => {
+  const handleResetScan = async () => {
     const hasEvaluations = evaluations.length > 0;
     const hasJD = jobDescription.trim().length > 0;
     
     if (!hasEvaluations && !hasJD) return;
     
-    let message = 'Reset and start a new scan?\n\n';
     const itemsToClear = [];
     if (hasEvaluations) {
       itemsToClear.push(`${evaluations.length} evaluation(s)`);
@@ -979,10 +1037,16 @@ export default function Home() {
       itemsToClear.push('current job description');
     }
     
-    message += `This will clear:\n- ${itemsToClear.join('\n- ')}\n\n`;
-    message += 'Note: All data is saved in the database and can be accessed later.';
+    const itemsList = itemsToClear.map(item => `• ${item}`).join('<br>');
+    const message = `This will clear:<br>${itemsList}<br><br><small class="text-slate-500">Note: All data is saved in the database and can be accessed later.</small>`;
     
-    const confirmed = typeof window !== 'undefined' && window.confirm(message);
+    const confirmed = await confirm(
+      'Reset and start a new scan?',
+      message,
+      'Reset',
+      'Cancel',
+      'warning'
+    );
     
     if (confirmed) {
       setEvaluations([]);
