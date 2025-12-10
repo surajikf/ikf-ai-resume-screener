@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import UploadPanel from "@/components/UploadPanel";
 import JiraBoard from "@/components/JiraBoard";
 import EvaluationModal from "@/components/EvaluationModal";
@@ -19,6 +19,7 @@ import {
 import { getSettings } from "@/utils/settingsStorage";
 import { getEvaluations as getStoredEvaluations, saveEvaluations, addEvaluation, clearEvaluations } from "@/utils/evaluationStorage";
 import { syncEvaluationsToSupabase, syncJobDescriptionsToSupabase } from "@/utils/syncToSupabase";
+import { formatErrorMessage, logError, validateEvaluation, validateJobDescription, validateFile, safeAsync } from "@/utils/errorHandler";
 
 // Helper function to convert duration string to months
 const durationToMonths = (duration) => {
@@ -112,6 +113,7 @@ export default function Home() {
   const [evaluatingFiles, setEvaluatingFiles] = useState(new Map()); // Track individual file evaluations: Map<fileName, {status: 'evaluating'|'done'|'error', progress?: string}>
   const [globalError, setGlobalError] = useState("");
   const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const duplicateWarningTimerRef = useRef(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [selectedResume, setSelectedResume] = useState(null);
   const [settings, setSettings] = useState(null);
@@ -196,19 +198,34 @@ export default function Home() {
         setEvaluations(dbEvaluations);
         
         // Also save to localStorage as backup
-        saveEvaluations(dbEvaluations);
+        try {
+          saveEvaluations(dbEvaluations);
+        } catch (saveError) {
+          logError(saveError, 'Save Evaluations to localStorage');
+        }
+      } else if (data.success && data.data && data.data.length === 0) {
+        // No evaluations in database - keep localStorage if exists
+        console.log('No evaluations found in database');
       }
-      } catch (err) {
-        console.log('Database evaluations load failed, using localStorage:', err);
-        // Keep using localStorage evaluations if database fails
-        if (useStoredFirst) {
+    } catch (err) {
+      logError(err, 'Load Evaluations from Database');
+      // Keep using localStorage evaluations if database fails
+      if (useStoredFirst) {
+        try {
           const storedEvaluations = getStoredEvaluations();
-          if (storedEvaluations.length > 0) {
+          if (storedEvaluations && Array.isArray(storedEvaluations) && storedEvaluations.length > 0) {
             setEvaluations(storedEvaluations);
           }
+        } catch (localError) {
+          logError(localError, 'Load from localStorage fallback');
         }
       }
+    }
+    
+    return () => {
+      isCancelled = true;
     };
+  };
 
   useEffect(() => {
     // Load from localStorage immediately (instant display)
@@ -275,6 +292,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+    
     // Load UI settings from database - will auto-initialize defaults if needed
     const loadSettings = async () => {
       try {
@@ -283,28 +302,49 @@ export default function Home() {
         
         // Load settings from database (API will auto-initialize if empty)
         const response = await fetch('/api/settings/get');
+        
+        if (!isMounted) return;
+        
+        if (!response.ok) {
+          throw new Error(`Failed to load settings: ${response.status}`);
+        }
+        
         const data = await response.json();
+        
+        if (!isMounted) return;
         
         if (data.success) {
           const settingsData = data.data || {};
           setSettings(settingsData);
           // Also sync to localStorage as backup
           if (typeof window !== "undefined") {
-            localStorage.setItem("ikfSettings", JSON.stringify(settingsData));
+            try {
+              localStorage.setItem("ikfSettings", JSON.stringify(settingsData));
+            } catch (storageError) {
+              logError(storageError, 'Save Settings to localStorage');
+            }
           }
         } else {
           // Fallback to localStorage
           const localSettings = getSettings();
-          setSettings(localSettings);
+          if (isMounted) {
+            setSettings(localSettings);
+          }
         }
       } catch (err) {
-        console.log('Database settings load failed, using localStorage:', err);
-        const localSettings = getSettings();
-        setSettings(localSettings);
+        logError(err, 'Load Settings');
+        if (isMounted) {
+          const localSettings = getSettings();
+          setSettings(localSettings);
+        }
       }
     };
     
     loadSettings();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -1046,7 +1086,15 @@ export default function Home() {
             previousDate: prevDate,
             matchMethod: duplicateData.matchMethod,
           });
-          setTimeout(() => setDuplicateWarning(null), 20000);
+          // Clear any existing timer
+          if (duplicateWarningTimerRef.current) {
+            clearTimeout(duplicateWarningTimerRef.current);
+          }
+          // Set new timer
+          duplicateWarningTimerRef.current = setTimeout(() => {
+            setDuplicateWarning(null);
+            duplicateWarningTimerRef.current = null;
+          }, 20000);
         } else {
           // Fallback to localStorage check
           const previousEval = findPreviousEvaluation(candidateName);
@@ -1058,11 +1106,19 @@ export default function Home() {
               previousDate: prevDate,
               matchMethod: 'localStorage',
             });
-            setTimeout(() => setDuplicateWarning(null), 20000);
+            // Clear any existing timer
+            if (duplicateWarningTimerRef.current) {
+              clearTimeout(duplicateWarningTimerRef.current);
+            }
+            // Set new timer
+            duplicateWarningTimerRef.current = setTimeout(() => {
+              setDuplicateWarning(null);
+              duplicateWarningTimerRef.current = null;
+            }, 20000);
           }
         }
       } catch (err) {
-        console.log('Duplicate check failed:', err);
+        logError(err, 'Duplicate Check');
         // Fallback to localStorage
         const previousEval = findPreviousEvaluation(candidateName);
         if (previousEval) {
@@ -1073,7 +1129,15 @@ export default function Home() {
             previousDate: prevDate,
             matchMethod: 'localStorage',
           });
-          setTimeout(() => setDuplicateWarning(null), 20000);
+          // Clear any existing timer
+          if (duplicateWarningTimerRef.current) {
+            clearTimeout(duplicateWarningTimerRef.current);
+          }
+          // Set new timer
+          duplicateWarningTimerRef.current = setTimeout(() => {
+            setDuplicateWarning(null);
+            duplicateWarningTimerRef.current = null;
+          }, 20000);
         }
       }
 
@@ -1233,8 +1297,9 @@ export default function Home() {
         }
       }, 100);
       
-      // Note: JD is NOT automatically saved after evaluation
+      // IMPORTANT: JD is NOT automatically saved after evaluation
       // User must explicitly click "Save JD" button to save it
+      // We do NOT call saveJD() or fetch('/api/job-descriptions/save') here
       
       return evaluation;
     } catch (error) {
