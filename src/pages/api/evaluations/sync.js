@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     }
 
     // Filter evaluations that don't have databaseId (not synced yet)
-    const unsyncedEvaluations = evaluations.filter(eval => !eval.databaseId && !eval.id?.toString().startsWith('loading-'));
+    const unsyncedEvaluations = evaluations.filter(evaluation => !evaluation.databaseId && !evaluation.id?.toString().startsWith('loading-'));
 
     if (unsyncedEvaluations.length === 0) {
       return res.status(200).json({
@@ -184,7 +184,7 @@ export default async function handler(req, res) {
           }
 
           // Insert evaluation
-          const evalResult = await query(
+          const evaluationResult = await query(
             `INSERT INTO evaluations (
               candidate_id, job_description_id, role_applied, company_location,
               experience_ctc_notice_location, work_experience, verdict, match_score,
