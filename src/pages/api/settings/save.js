@@ -1,5 +1,17 @@
 import { query, getConnection } from '@/lib/db';
 
+/**
+ * Save settings to database
+ * 
+ * IMPORTANT: Settings saved here persist across:
+ * - Git pushes and code deployments
+ * - Vercel deployments
+ * - Local development restarts
+ * 
+ * Once credentials are saved in the Settings page, they will automatically
+ * be available to all users on both local and Vercel deployments.
+ * No need to re-enter credentials after deployment.
+ */
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });

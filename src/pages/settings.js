@@ -32,17 +32,19 @@ export default function SettingsPage() {
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
-    // Load settings from database - API will auto-initialize defaults if needed
+    // Load settings from database - ALWAYS load fresh from database
+    // Database settings persist across Git pushes and Vercel deployments
     const loadSettings = async () => {
-      // Initialize defaults in database if they don't exist
+      // Initialize defaults in database if they don't exist (silent, don't wait)
       try {
         await fetch('/api/settings/init', { method: 'POST' });
       } catch (err) {
         console.log('Settings init check failed:', err);
       }
       
-      // Load settings from database (will include defaults if just initialized)
-      const dbSettings = await getSettingsFromDatabase();
+      // ALWAYS load fresh settings from database (force refresh to get latest)
+      // This ensures credentials saved previously are always shown
+      const dbSettings = await getSettingsFromDatabase(true);
       const defaults = getSettings();
       const current = dbSettings || defaults;
       

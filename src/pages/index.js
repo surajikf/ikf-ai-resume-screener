@@ -296,48 +296,43 @@ export default function Home() {
   useEffect(() => {
     let isMounted = true;
     
-    // Load UI settings from database - will auto-initialize defaults if needed
+    // Load UI settings from database - ALWAYS load from database first
+    // Database settings persist across Git pushes and Vercel deployments
     const loadSettings = async () => {
       try {
         // Initialize defaults in database if they don't exist (silent, don't wait)
         fetch('/api/settings/init', { method: 'POST' }).catch(() => {});
         
-        // Load settings from database (API will auto-initialize if empty)
-        const response = await fetch('/api/settings/get');
+        // ALWAYS load fresh settings from database (primary source of truth)
+        // This ensures credentials saved in Settings page are used everywhere
+        const { getSettingsFromDatabase } = await import('@/utils/settingsStorage');
+        const dbSettings = await getSettingsFromDatabase(true); // Force refresh
         
         if (!isMounted) return;
         
-        if (!response.ok) {
-          throw new Error(`Failed to load settings: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (!isMounted) return;
-        
-        if (data.success) {
-          const settingsData = data.data || {};
-          setSettings(settingsData);
-          // Also sync to localStorage as backup
-          if (typeof window !== "undefined") {
-            try {
-              localStorage.setItem("ikfSettings", JSON.stringify(settingsData));
-            } catch (storageError) {
-              logError(storageError, 'Save Settings to localStorage');
-            }
-          }
+        if (dbSettings && Object.keys(dbSettings).length > 0) {
+          setSettings(dbSettings);
+          console.log('[index] Settings loaded from database:', {
+            hasWhatsApp: !!dbSettings.whatsappSendingEnabled,
+            hasEmail: !!dbSettings.emailSendingEnabled,
+            hasApiKey: !!dbSettings.whatsappApiKey,
+            hasCompanyId: !!dbSettings.whatsappCompanyId,
+          });
         } else {
-          // Fallback to localStorage
+          // Fallback to cached settings if database is empty
           const localSettings = getSettings();
           if (isMounted) {
             setSettings(localSettings);
+            console.log('[index] Using cached settings (database empty)');
           }
         }
       } catch (err) {
         logError(err, 'Load Settings');
         if (isMounted) {
+          // Last resort: use cached/localStorage settings
           const localSettings = getSettings();
           setSettings(localSettings);
+          console.log('[index] Using cached settings due to error');
         }
       }
     };
@@ -755,8 +750,17 @@ export default function Home() {
   };
 
   const handleBulkSendEmail = async (candidates) => {
-    // Get settings from localStorage if state is not available
-    const currentSettings = settings || getSettings();
+    // ALWAYS get fresh settings from database (credentials persist across deployments)
+    let currentSettings = settings;
+    if (!currentSettings) {
+      try {
+        const { getSettingsFromDatabase } = await import('@/utils/settingsStorage');
+        currentSettings = await getSettingsFromDatabase();
+      } catch (err) {
+        console.log('Failed to load settings from database, using cached:', err);
+        currentSettings = getSettings();
+      }
+    }
     
     if (!currentSettings || !currentSettings.emailSendingEnabled) {
       return { success: false, error: "Email sending is not enabled in Settings" };
@@ -878,8 +882,17 @@ export default function Home() {
   };
 
   const handleBulkSendWhatsApp = async (candidates) => {
-    // Get settings from localStorage if state is not available
-    const currentSettings = settings || getSettings();
+    // ALWAYS get fresh settings from database (credentials persist across deployments)
+    let currentSettings = settings;
+    if (!currentSettings) {
+      try {
+        const { getSettingsFromDatabase } = await import('@/utils/settingsStorage');
+        currentSettings = await getSettingsFromDatabase();
+      } catch (err) {
+        console.log('Failed to load settings from database, using cached:', err);
+        currentSettings = getSettings();
+      }
+    }
     
     if (!currentSettings || !currentSettings.whatsappSendingEnabled) {
       return { success: false, error: "WhatsApp sending is not enabled in Settings" };

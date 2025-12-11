@@ -32,71 +32,100 @@ let cachedDbSettings = null;
 let cacheTimestamp = null;
 const CACHE_DURATION = 60000; // 1 minute cache
 
-// Get settings from database (async)
-export const getSettingsFromDatabase = async () => {
+// Get settings from database (async) - ALWAYS use this for fresh database values
+// This is the primary source of truth. Database values persist across deployments.
+export const getSettingsFromDatabase = async (forceRefresh = false) => {
   try {
+    // Clear cache if forcing refresh
+    if (forceRefresh) {
+      cachedDbSettings = null;
+      cacheTimestamp = null;
+    }
+    
     const response = await fetch('/api/settings/get');
     
     // Handle non-200 responses gracefully
     if (!response.ok) {
       console.log('Settings API returned non-200 status:', response.status);
+      // Try to use cached settings if available
+      if (cachedDbSettings) {
+        return cachedDbSettings;
+      }
       return DEFAULT_SETTINGS;
     }
     
     const data = await response.json();
     
     if (data.success) {
-      // Always return settings (either from DB or defaults)
+      // Database values are the source of truth - use them as-is
+      // The API already merges with defaults, so we get complete settings
       const settings = data.data || DEFAULT_SETTINGS;
       
-      console.log('[settingsStorage] Received from API:', {
+      console.log('[settingsStorage] Received from database:', {
         hasApiKey: !!settings.whatsappApiKey && settings.whatsappApiKey !== "",
         hasCompanyId: !!settings.whatsappCompanyId && settings.whatsappCompanyId !== "",
         apiKeyLength: settings.whatsappApiKey?.length || 0,
         companyIdLength: settings.whatsappCompanyId?.length || 0,
         apiKeyPreview: settings.whatsappApiKey ? '***' + settings.whatsappApiKey.slice(-4) : 'empty',
         companyIdPreview: settings.whatsappCompanyId ? '***' + settings.whatsappCompanyId.slice(-4) : 'empty',
+        source: 'database',
       });
       
-      // If settings were just initialized, cache them
-      if (Object.keys(settings).length > 0) {
-        cachedDbSettings = settings;
-        cacheTimestamp = Date.now();
-        // Also sync to localStorage as backup
-        if (typeof window !== "undefined") {
+      // Always cache database settings (they persist across deployments)
+      cachedDbSettings = settings;
+      cacheTimestamp = Date.now();
+      
+      // Also sync to localStorage as backup (but database is primary)
+      if (typeof window !== "undefined") {
+        try {
           localStorage.setItem("ikfSettings", JSON.stringify(settings));
+        } catch (storageError) {
+          console.warn('Failed to save to localStorage:', storageError);
         }
       }
       
       return settings;
     }
     
-    // Fallback to defaults if API returns success: false
+    // Fallback to cached settings if available, then defaults
+    if (cachedDbSettings) {
+      console.log('[settingsStorage] API returned success:false, using cached settings');
+      return cachedDbSettings;
+    }
+    
     return DEFAULT_SETTINGS;
   } catch (error) {
     console.log('Failed to load settings from database:', error);
-    // Return defaults on error - ensures app always works
+    // Try cached settings first, then defaults
+    if (cachedDbSettings) {
+      console.log('[settingsStorage] Using cached settings due to error');
+      return cachedDbSettings;
+    }
     return DEFAULT_SETTINGS;
   }
 };
 
 // Get settings (sync - from cache/localStorage)
+// NOTE: This is a fallback. Always prefer getSettingsFromDatabase() for fresh database values.
+// This function is used for immediate access when async is not possible.
 export const getSettings = () => {
   if (typeof window === "undefined") return { ...DEFAULT_SETTINGS };
 
-  // Return cached database settings if available and fresh
+  // Return cached database settings if available and fresh (preferred source)
   if (cachedDbSettings && cacheTimestamp && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-    // Merge: Use cached value if not empty, otherwise use default
+    // Database values take full precedence - don't merge with defaults
+    // If a value exists in database (even if empty string), use it
     const merged = { ...DEFAULT_SETTINGS };
     for (const [key, value] of Object.entries(cachedDbSettings)) {
-      if (value !== null && value !== undefined && value !== "") {
+      // Use database value if it exists (including empty strings - user explicitly set it)
+      if (value !== null && value !== undefined) {
         merged[key] = value;
       }
     }
     return merged;
   }
 
-  // Fallback to localStorage
+  // Fallback to localStorage (which should have been synced from database)
   try {
     const raw = localStorage.getItem("ikfSettings");
     if (!raw) return { ...DEFAULT_SETTINGS };
@@ -104,7 +133,8 @@ export const getSettings = () => {
     // Merge: Use localStorage value if not empty, otherwise use default
     const merged = { ...DEFAULT_SETTINGS };
     for (const [key, value] of Object.entries(parsed)) {
-      if (value !== null && value !== undefined && value !== "") {
+      // Use localStorage value if it exists (including empty strings)
+      if (value !== null && value !== undefined) {
         merged[key] = value;
       }
     }

@@ -216,18 +216,14 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail, can
     setSendStatus("");
 
     try {
-      // Get settings - try database first, fallback to cached/localStorage
-      let settings = getSettings();
+      // ALWAYS get fresh settings from database first (credentials persist across deployments)
+      // This ensures credentials saved in Settings page are always used
+      let settings = await getSettingsFromDatabase();
       
-      // Try to get fresh settings from database
-      try {
-        const dbSettings = await getSettingsFromDatabase();
-        if (dbSettings) {
-          settings = dbSettings;
-        }
-      } catch (err) {
-        // Use cached settings if database fetch fails
-        console.log('Using cached settings:', err);
+      // Fallback to cached settings only if database fetch completely fails
+      if (!settings || Object.keys(settings).length === 0) {
+        console.log('Database settings empty, trying cached settings');
+        settings = getSettings();
       }
       
       console.log('[EvaluationModal] Sending WhatsApp to:', phoneTrimmed, 'Original:', toWhatsApp);
@@ -345,18 +341,14 @@ const EvaluationModal = ({ candidate, onClose, emailSignature, canSendEmail, can
     setSendStatus("");
 
     try {
-      // Get settings - try database first, fallback to cached/localStorage
-      let settings = getSettings();
+      // ALWAYS get fresh settings from database first (credentials persist across deployments)
+      // This ensures credentials saved in Settings page are always used
+      let settings = await getSettingsFromDatabase();
       
-      // Try to get fresh settings from database
-      try {
-        const dbSettings = await getSettingsFromDatabase();
-        if (dbSettings) {
-          settings = dbSettings;
-        }
-      } catch (err) {
-        // Use cached settings if database fetch fails
-        console.log('Using cached settings:', err);
+      // Fallback to cached settings only if database fetch completely fails
+      if (!settings || Object.keys(settings).length === 0) {
+        console.log('Database settings empty, trying cached settings');
+        settings = getSettings();
       }
       
       // Validate that we have email credentials
