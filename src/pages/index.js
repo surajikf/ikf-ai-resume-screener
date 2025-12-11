@@ -1319,7 +1319,16 @@ export default function Home() {
             betterSuitedFocus: summary.betterSuitedFocus || '',
             emailDraft,
             whatsappDraft,
+            // Include resume file data to save in same transaction
+            resumeFile: data?.metadata?.resumeFile || null,
           }),
+        });
+        
+        console.log('[index] Sending evaluation to save API:', {
+          hasResumeFile: !!data?.metadata?.resumeFile,
+          resumeFileName: data?.metadata?.resumeFile?.fileName,
+          resumeFileSize: data?.metadata?.resumeFile?.fileSize,
+          resumeFileContentLength: data?.metadata?.resumeFile?.fileContent?.length,
         });
         
         if (saveResponse.ok) {
@@ -1329,11 +1338,13 @@ export default function Home() {
             evaluation.id = dbEvaluationId;
             evaluation.databaseId = dbEvaluationId;
             
-            // Save resume file to database if available
-            if (data?.metadata?.resumeFile) {
+            // Resume is now saved directly in the evaluations/save API
+            // But if it wasn't saved there (e.g., API doesn't support it yet), try separate save
+            if (!saveData.data?.resumeSaved && data?.metadata?.resumeFile) {
+              console.log('[index] Resume not saved in evaluation API, trying separate save...');
               try {
                 const resumeData = data.metadata.resumeFile;
-                await fetch('/api/resumes/save', {
+                const resumeSaveResponse = await fetch('/api/resumes/save', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -1344,10 +1355,18 @@ export default function Home() {
                     fileContent: resumeData.fileContent, // Already base64
                   }),
                 });
+                
+                const resumeSaveResult = await resumeSaveResponse.json();
+                if (resumeSaveResponse.ok && resumeSaveResult.success) {
+                  console.log('[index] Resume saved successfully via separate API');
+                } else {
+                  console.error('[index] Resume save failed:', resumeSaveResult.error || resumeSaveResult.message);
+                }
               } catch (resumeError) {
-                console.log('Resume save failed:', resumeError);
-                // Continue - evaluation is saved, resume is optional
+                console.error('[index] Resume save error:', resumeError);
               }
+            } else if (saveData.data?.resumeSaved) {
+              console.log('[index] Resume saved successfully with evaluation');
             }
           }
         }

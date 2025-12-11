@@ -436,6 +436,22 @@ export async function query(sql, params = []) {
       const record = {};
       columns.forEach((col, idx) => {
         let value = values[idx];
+        
+        // Handle Buffer objects for binary columns (like file_content)
+        // Convert Buffer to hex format for PostgreSQL BYTEA
+        if (Buffer.isBuffer(value)) {
+          // For PostgreSQL BYTEA, we need to pass as hex string with \x prefix
+          // But Supabase JS client expects base64 or we can use a special format
+          // Actually, Supabase handles Buffers, but we'll convert to hex for safety
+          value = '\\x' + value.toString('hex');
+          console.log(`[db-supabase] Converted Buffer to hex for column ${col}, length: ${value.length}`);
+        } else if (value && typeof value === 'object' && value.type === 'Buffer' && Array.isArray(value.data)) {
+          // Already a JSON-serialized Buffer - convert to hex
+          const buffer = Buffer.from(value.data);
+          value = '\\x' + buffer.toString('hex');
+          console.log(`[db-supabase] Converted JSON Buffer to hex for column ${col}`);
+        }
+        
         // Parse JSON strings
         if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
           try {

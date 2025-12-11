@@ -142,17 +142,20 @@ CREATE TABLE IF NOT EXISTS \`settings\` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Resumes Table (for storing resume files)
+-- Supports both Supabase Storage (file_path) and BLOB storage (file_content)
 CREATE TABLE IF NOT EXISTS \`resumes\` (
   \`id\` INT AUTO_INCREMENT PRIMARY KEY,
   \`evaluation_id\` INT NOT NULL,
   \`file_name\` VARCHAR(255) NOT NULL,
   \`file_type\` VARCHAR(100) DEFAULT NULL,
   \`file_size\` INT DEFAULT NULL,
-  \`file_content\` LONGBLOB NOT NULL,
+  \`file_content\` LONGBLOB DEFAULT NULL,
+  \`file_path\` VARCHAR(500) DEFAULT NULL COMMENT 'Path in Supabase Storage (e.g., evaluationId/filename.pdf)',
   \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (\`evaluation_id\`) REFERENCES \`evaluations\`(\`id\`) ON DELETE CASCADE,
   INDEX \`idx_evaluation_id\` (\`evaluation_id\`),
-  INDEX \`idx_created_at\` (\`created_at\`)
+  INDEX \`idx_created_at\` (\`created_at\`),
+  INDEX \`idx_file_path\` (\`file_path\`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `;
     }

@@ -116,11 +116,13 @@ CREATE TABLE IF NOT EXISTS resumes (
   file_name VARCHAR(255) NOT NULL,
   file_type VARCHAR(100) DEFAULT NULL,
   file_size INT DEFAULT NULL,
-  file_content BYTEA NOT NULL,
+  file_content BYTEA DEFAULT NULL,
+  file_path VARCHAR(500) DEFAULT NULL,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_evaluation_id_resume ON resumes(evaluation_id);
+CREATE INDEX IF NOT EXISTS idx_file_path ON resumes(file_path);
 
 -- Enable Row Level Security (RLS) - Allow all operations for now
 -- You can restrict this later based on your needs
