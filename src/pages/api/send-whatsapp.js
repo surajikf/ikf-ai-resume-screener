@@ -120,12 +120,20 @@ export default async function handler(req, res) {
       hasMessage: !!message,
     });
     
-    // Validate phone_number_id is not a phone number (should be a UUID or numeric ID, not 10 digits)
-    if (phoneNumberId && /^\d{10,12}$/.test(phoneNumberId.replace(/\D/g, ""))) {
-      console.error("[send-whatsapp] WARNING: phone_number_id looks like a phone number, not a Phone Number ID!");
+    // Validate phone_number_id is not a phone number (should be a UUID or numeric ID, not 10-12 digits)
+    // Phone Number ID from MyOperator is typically a longer numeric ID (e.g., "690875100784871") or UUID
+    // NOT the actual phone number (which would be 10 digits like "8044186875")
+    const cleanedPhoneNumberId = phoneNumberId ? String(phoneNumberId).replace(/\D/g, "") : "";
+    if (cleanedPhoneNumberId && /^\d{10,12}$/.test(cleanedPhoneNumberId)) {
+      console.error("[send-whatsapp] WARNING: phone_number_id looks like a phone number, not a Phone Number ID!", {
+        provided: phoneNumberId,
+        cleaned: cleanedPhoneNumberId,
+        length: cleanedPhoneNumberId.length
+      });
       return res.status(400).json({
         error: "Invalid Phone Number ID",
-        message: `The Phone Number ID appears to be a phone number (${phoneNumberId}) instead of a Phone Number ID. In MyOperator Settings, the "Phone Number ID" should be the ID of your WhatsApp Business number (usually a UUID or numeric ID from MyOperator dashboard), NOT the phone number itself. Please check your Settings → WhatsApp API settings.`,
+        message: `The Phone Number ID appears to be a phone number (${phoneNumberId}) instead of a Phone Number ID. In MyOperator Settings, the "Phone Number ID" should be the ID of your WhatsApp Business number (usually a longer numeric ID like "690875100784871" or a UUID from MyOperator dashboard), NOT the phone number itself (which would be 10 digits). Please check your Settings → WhatsApp API settings and update the Phone Number ID field.`,
+        hint: "Phone Number ID should be a longer numeric ID or UUID, not a 10-digit phone number. Check your MyOperator dashboard for the correct Phone Number ID.",
       });
     }
 

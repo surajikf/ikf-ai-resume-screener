@@ -40,7 +40,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const whatsappDefaults = {
   whatsappApiKey: "9oAlpAhPvkKOGwuo6LiU8CPyRPxXSDoRVq1PFD0tkN",
   whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
-  whatsappPhoneNumberId: "8044186875",
+  whatsappPhoneNumberId: "690875100784871", // Phone Number ID (not phone number)
   whatsappCompanyId: "689044bc84f5e822",
   whatsappTemplateName: "resume_screener_message01",
   whatsappLanguage: "en",

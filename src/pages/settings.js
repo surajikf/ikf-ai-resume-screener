@@ -19,7 +19,7 @@ export default function SettingsPage() {
   const [whatsappSendingEnabled, setWhatsappSendingEnabled] = useState(true);
   const [whatsappApiKey, setWhatsappApiKey] = useState("9oAlpAhPvkKOGwuo6LiU8CPyRPxXSDoRVq1PFD0tkN");
   const [whatsappApiUrl, setWhatsappApiUrl] = useState("https://publicapi.myoperator.co/chat/messages");
-  const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState("8044186875");
+  const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState("690875100784871");
   const [whatsappCompanyId, setWhatsappCompanyId] = useState("689044bc84f5e822");
   const [whatsappTemplateName, setWhatsappTemplateName] = useState("resume_screener_message01");
   const [whatsappLanguage, setWhatsappLanguage] = useState("en");

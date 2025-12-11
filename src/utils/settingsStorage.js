@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS = {
   whatsappSendingEnabled: true,
   whatsappApiKey: process.env.WHATSAPP_API_KEY || "9oAlpAhPvkKOGwuo6LiU8CPyRPxXSDoRVq1PFD0tkN",
   whatsappApiUrl: "https://publicapi.myoperator.co/chat/messages",
-  whatsappPhoneNumberId: "8044186875", // Hardcoded default
+  whatsappPhoneNumberId: "690875100784871", // Hardcoded default - Phone Number ID (not phone number)
   whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "689044bc84f5e822",
   whatsappTemplateName: "resume_screener_message01", // Hardcoded default
   whatsappLanguage: "en",
