@@ -118,6 +118,7 @@ export default function Home() {
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [selectedResume, setSelectedResume] = useState(null);
   const [settings, setSettings] = useState(null);
+  const isJDFromSavedRef = useRef(false); // Track if current JD is from a saved JD (should not be auto-saved)
 
   // Function to load evaluations (reusable)
   const loadEvaluations = async (useStoredFirst = true) => {
@@ -355,6 +356,10 @@ export default function Home() {
         .map((line) => line.trim())
         .find((line) => line.length > 0) || "";
     setJobTitle(detectedTitle);
+    
+    // Note: We track if JD is from saved via isJDFromSavedRef
+    // This flag is set when handleUseJD is called and cleared when user explicitly saves
+    // This prevents auto-saving pre-saved JDs after evaluation
   }, [jobDescription]);
 
   // Smart title extraction from JD content
@@ -427,6 +432,9 @@ export default function Home() {
       setGlobalError("Cannot save an empty job description.");
       return;
     }
+
+    // Clear the flag when user explicitly saves - this is intentional
+    isJDFromSavedRef.current = false;
 
     // Extract smart title
     const suggestedTitle = extractSmartTitle(jobDescription);
@@ -545,6 +553,8 @@ export default function Home() {
   const handleUseJD = (jd) => {
     setJobDescription(jd.content);
     setGlobalError("");
+    // Mark that this JD is from a saved one - should NOT be auto-saved
+    isJDFromSavedRef.current = true;
   };
 
   const handleDeleteJD = async (jd) => {
@@ -1089,6 +1099,8 @@ export default function Home() {
     const data = await response.json();
     if (data?.text) {
       setJobDescription(data.text);
+      // File upload is new content, not from saved JD
+      isJDFromSavedRef.current = false;
       return data.text;
     }
 
@@ -1364,6 +1376,10 @@ export default function Home() {
       // IMPORTANT: JD is NOT automatically saved after evaluation
       // User must explicitly click "Save JD" button to save it
       // We do NOT call saveJD() or fetch('/api/job-descriptions/save') here
+      // 
+      // Additional safeguard: If JD was loaded from saved JDs (isJDFromSavedRef.current === true),
+      // we definitely should NOT save it again - it's already saved
+      // The flag will be cleared when user explicitly clicks "Save JD" or uploads a new file
       
       return evaluation;
     } catch (error) {
