@@ -142,3 +142,4 @@ All these routes save/retrieve data from Supabase:
 
 The application is 100% using Supabase for all database operations. Every resume you evaluate, every candidate record, every evaluation result - all saved to Supabase PostgreSQL database.
 
+

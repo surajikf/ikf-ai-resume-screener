@@ -62,3 +62,4 @@ The Settings page now:
 
 4. **Security**: Never commit actual credentials to git. Always use environment variables or database storage.
 
+

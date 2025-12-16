@@ -175,3 +175,4 @@ Replace `src/lib/db.js` imports with `src/lib/db-supabase.js` in all API routes.
 ✅ Auto-scales with Vercel
 ✅ Built-in backups and monitoring
 
+

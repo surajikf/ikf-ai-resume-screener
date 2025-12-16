@@ -107,3 +107,4 @@ taskkill /F /PID <PID>
 3. Verify Node.js version: `node --version` (should be 18+)
 4. Try: `npm install` then `npm run dev`
 
+

@@ -113,3 +113,4 @@ After tables are created:
 3. ✅ Test saving settings in the UI
 4. ✅ Deploy to Vercel with environment variables
 
+

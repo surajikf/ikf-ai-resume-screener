@@ -3,7 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import { getSettings, saveSettings, getSettingsFromDatabase } from "@/utils/settingsStorage";
-import { FaEnvelope, FaSignature, FaCheckCircle, FaInfoCircle, FaLock, FaArrowLeft, FaWhatsapp, FaPhone, FaGlobe, FaSave, FaSync } from "react-icons/fa";
+import { FaEnvelope, FaSignature, FaCheckCircle, FaInfoCircle, FaLock, FaArrowLeft, FaWhatsapp, FaPhone, FaGlobe, FaSave, FaSync, FaRobot, FaKey } from "react-icons/fa";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,6 +23,13 @@ export default function SettingsPage() {
   const [whatsappCompanyId, setWhatsappCompanyId] = useState("689044bc84f5e822");
   const [whatsappTemplateName, setWhatsappTemplateName] = useState("resume_screener_message01");
   const [whatsappLanguage, setWhatsappLanguage] = useState("en");
+  // AI Provider Settings
+  const [aiProvider, setAiProvider] = useState("gemini");
+  const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [groqApiKey, setGroqApiKey] = useState("");
+  const [huggingfaceApiKey, setHuggingfaceApiKey] = useState("");
+  const [kieApiKey, setKieApiKey] = useState("");
+  const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false); // For fetching from database
@@ -120,6 +127,14 @@ export default function SettingsPage() {
           : (defaults.whatsappLanguage || "en")
       );
       
+      // Load AI Provider settings
+      setAiProvider(current.aiProvider || defaults.aiProvider || "gemini");
+      setGeminiApiKey(current.geminiApiKey || defaults.geminiApiKey || "");
+      setGroqApiKey(current.groqApiKey || defaults.groqApiKey || "");
+      setHuggingfaceApiKey(current.huggingfaceApiKey || defaults.huggingfaceApiKey || "");
+      setKieApiKey(current.kieApiKey || defaults.kieApiKey || "");
+      setOpenaiApiKey(current.openaiApiKey || defaults.openaiApiKey || "");
+      
       // Mark settings as loaded first
       setSettingsLoaded(true);
       isInitialLoad.current = false;
@@ -159,7 +174,8 @@ export default function SettingsPage() {
     emailSignature, emailSendingEnabled, gmailEmail, gmailAppPassword,
     googleClientId, googleClientSecret, googleRefreshToken, googleSenderEmail,
     whatsappSendingEnabled, whatsappApiKey, whatsappApiUrl, whatsappPhoneNumberId,
-    whatsappCompanyId, whatsappTemplateName, whatsappLanguage
+    whatsappCompanyId, whatsappTemplateName, whatsappLanguage,
+    aiProvider, geminiApiKey, groqApiKey, huggingfaceApiKey, kieApiKey, openaiApiKey
     // Note: Don't include autoSaveEnabled, settingsLoaded, saving, or isInitialLoad in deps
   ]);
 
@@ -186,6 +202,13 @@ export default function SettingsPage() {
       whatsappCompanyId,
       whatsappTemplateName,
       whatsappLanguage,
+      // AI Provider Settings
+      aiProvider,
+      geminiApiKey,
+      groqApiKey,
+      huggingfaceApiKey,
+      kieApiKey,
+      openaiApiKey,
     };
 
     console.log('[Settings] Saving to database:', {
@@ -275,6 +298,14 @@ export default function SettingsPage() {
       );
       setWhatsappTemplateName(mergedSettings.whatsappTemplateName || defaults.whatsappTemplateName || "resume_screener_message01");
       setWhatsappLanguage(mergedSettings.whatsappLanguage || defaults.whatsappLanguage || "en");
+      
+      // Load AI Provider settings
+      setAiProvider(mergedSettings.aiProvider || defaults.aiProvider || "gemini");
+      setGeminiApiKey(mergedSettings.geminiApiKey || defaults.geminiApiKey || "");
+      setGroqApiKey(mergedSettings.groqApiKey || defaults.groqApiKey || "");
+      setHuggingfaceApiKey(mergedSettings.huggingfaceApiKey || defaults.huggingfaceApiKey || "");
+      setKieApiKey(mergedSettings.kieApiKey || defaults.kieApiKey || "");
+      setOpenaiApiKey(mergedSettings.openaiApiKey || defaults.openaiApiKey || "");
       
       setSaved(true);
       setTimeout(() => {
@@ -507,6 +538,199 @@ export default function SettingsPage() {
                     </details>
                     </div>
                   )}
+              </section>
+
+              {/* AI Provider Configuration */}
+              <section className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                    <FaRobot className="text-indigo-600 text-base" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-base font-semibold text-slate-900">AI Provider</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">Choose and configure your AI provider for resume evaluation</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-2">
+                      <FaRobot className="inline mr-1.5 text-indigo-500 text-xs" />
+                      Select AI Provider *
+                    </label>
+                    <select
+                      value={aiProvider}
+                      onChange={(e) => setAiProvider(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all"
+                    >
+                      <option value="gemini">Google Gemini (Recommended - Free)</option>
+                      <option value="groq">Groq (Fast - Free)</option>
+                      <option value="huggingface">Hugging Face (Open Source - Free)</option>
+                      <option value="kie">KIE AI (OpenAI-Compatible)</option>
+                      <option value="openai">OpenAI (Paid)</option>
+                    </select>
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      {aiProvider === 'gemini' && '✓ Free tier: 60 req/min, 1,500/day'}
+                      {aiProvider === 'groq' && '✓ Very fast inference, free tier available'}
+                      {aiProvider === 'huggingface' && '✓ Open source models, free tier available'}
+                      {aiProvider === 'kie' && '✓ OpenAI-compatible API'}
+                      {aiProvider === 'openai' && '⚠️ Paid service - requires credits'}
+                    </p>
+                  </div>
+
+                  {/* Gemini API Key */}
+                  {(aiProvider === 'gemini' || geminiApiKey) && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-2">
+                        <FaKey className="inline mr-1.5 text-amber-500 text-xs" />
+                        Gemini API Key <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                        {aiProvider === 'gemini' && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                      <input
+                        type="password"
+                        value={geminiApiKey}
+                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400"
+                        placeholder="Enter Gemini API Key"
+                      />
+                      {geminiApiKey && (
+                        <p className="mt-1.5 text-xs text-green-600">
+                          ✓ {geminiApiKey.length} chars configured
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        Get free API key: <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">https://makersuite.google.com/app/apikey</a>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Groq API Key */}
+                  {(aiProvider === 'groq' || groqApiKey) && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-2">
+                        <FaKey className="inline mr-1.5 text-amber-500 text-xs" />
+                        Groq API Key <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                        {aiProvider === 'groq' && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                      <input
+                        type="password"
+                        value={groqApiKey}
+                        onChange={(e) => setGroqApiKey(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400"
+                        placeholder="Enter Groq API Key"
+                      />
+                      {groqApiKey && (
+                        <p className="mt-1.5 text-xs text-green-600">
+                          ✓ {groqApiKey.length} chars configured
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        Get free API key: <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">https://console.groq.com/keys</a>
+                      </p>
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs text-blue-800 leading-relaxed">
+                          <strong>✨ Using Kimi K2 Model:</strong> Groq will use <code className="text-xs bg-blue-100 px-1 rounded">moonshotai/kimi-k2-instruct-0905</code> by default. 
+                          This model features enhanced coding capabilities, 256K context window, and excellent performance for complex tasks. 
+                          <a href="https://console.groq.com/docs/model/moonshotai/kimi-k2-instruct-0905" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline ml-1">Learn more</a>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hugging Face API Key */}
+                  {(aiProvider === 'huggingface' || huggingfaceApiKey) && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-2">
+                        <FaKey className="inline mr-1.5 text-amber-500 text-xs" />
+                        Hugging Face API Key <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                        {aiProvider === 'huggingface' && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                      <input
+                        type="password"
+                        value={huggingfaceApiKey}
+                        onChange={(e) => setHuggingfaceApiKey(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400"
+                        placeholder="Enter Hugging Face API Key"
+                      />
+                      {huggingfaceApiKey && (
+                        <p className="mt-1.5 text-xs text-green-600">
+                          ✓ {huggingfaceApiKey.length} chars configured
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        Get free token: <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">https://huggingface.co/settings/tokens</a>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* KIE AI API Key */}
+                  {(aiProvider === 'kie' || kieApiKey) && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-2">
+                        <FaKey className="inline mr-1.5 text-amber-500 text-xs" />
+                        KIE AI API Key <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                        {aiProvider === 'kie' && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                      <input
+                        type="password"
+                        value={kieApiKey}
+                        onChange={(e) => setKieApiKey(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400"
+                        placeholder="Enter KIE AI API Key"
+                      />
+                      {kieApiKey && (
+                        <p className="mt-1.5 text-xs text-green-600">
+                          ✓ {kieApiKey.length} chars configured
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        Get API key: <a href="https://www.kie-ai.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">https://www.kie-ai.com/</a>
+                      </p>
+                      <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-xs text-amber-800 leading-relaxed">
+                          <strong>⚠️ Important:</strong> KIE AI endpoints may not be working correctly. 
+                          If you encounter 404 errors, the system will automatically fallback to Gemini (if configured). 
+                          <strong>Recommended:</strong> Use Gemini (free) or Groq (fast) for reliable service.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* OpenAI API Key */}
+                  {(aiProvider === 'openai' || openaiApiKey) && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-2">
+                        <FaKey className="inline mr-1.5 text-amber-500 text-xs" />
+                        OpenAI API Key <span className="text-xs text-slate-400 font-normal">(Saved to DB)</span>
+                        {aiProvider === 'openai' && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                      <input
+                        type="password"
+                        value={openaiApiKey}
+                        onChange={(e) => setOpenaiApiKey(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400"
+                        placeholder="Enter OpenAI API Key"
+                      />
+                      {openaiApiKey && (
+                        <p className="mt-1.5 text-xs text-green-600">
+                          ✓ {openaiApiKey.length} chars configured
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        Get API key: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">https://platform.openai.com/api-keys</a>
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="p-3 bg-indigo-50/80 border border-indigo-200/60 rounded-lg">
+                    <p className="text-xs text-indigo-800 leading-relaxed">
+                      <FaInfoCircle className="inline mr-1.5 text-indigo-500" />
+                      <strong>✅ Database Storage:</strong> AI provider settings and API keys are automatically saved to the database. 
+                      They will be available on your Vercel deployment - anyone using the Vercel link will use these same API keys. 
+                      No need to configure environment variables on Vercel!
+                    </p>
+                  </div>
+                </div>
               </section>
 
               {/* WhatsApp Messaging */}

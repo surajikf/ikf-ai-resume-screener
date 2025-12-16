@@ -50,3 +50,4 @@
 - Message cleaning removes greetings, signatures, and URLs before sending
 - Database logging happens for both success and failure cases
 
+

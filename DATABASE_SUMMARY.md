@@ -105,3 +105,4 @@ ALTER TABLE `whatsapp_logs` ADD INDEX `idx_status_date` (`status`, `created_at`)
 - **Database**: db_IKF_AI_RESUME
 - **Tables Created**: 13/13
 
+

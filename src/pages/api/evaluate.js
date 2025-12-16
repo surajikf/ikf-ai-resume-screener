@@ -1,6 +1,7 @@
 import formidable from "formidable";
-import OpenAI from "openai";
 import { extractTextFromUpload } from "@/lib/textExtraction";
+import { callAIProvider } from "@/lib/ai-providers";
+import { query } from "@/lib/db";
 
 export const config = {
   api: {
@@ -269,8 +270,92 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    res.status(500).json({ error: "Missing OpenAI API key." });
+  // Fetch AI provider settings from database (if available)
+  // IMPORTANT: Database settings take priority - they persist across Vercel deployments
+  // Anyone using the Vercel link will use the API keys saved in the database
+  let aiProviderSettings = null;
+  try {
+    const aiSettingsKeys = ['aiProvider', 'geminiApiKey', 'groqApiKey', 'groqModel', 'huggingfaceApiKey', 'kieApiKey', 'openaiApiKey'];
+    const settingsResults = await Promise.all(
+      aiSettingsKeys.map(async key => {
+        try {
+          const results = await query('SELECT setting_value FROM settings WHERE setting_key = ?', [key]);
+          // Handle both MySQL (array) and Supabase (object with data) formats
+          const row = Array.isArray(results) ? results[0] : (results?.data?.[0] || results?.[0]);
+          const rawValue = row?.setting_value;
+          if (!rawValue) return { key, value: null };
+          
+          // Parse JSON value (stored as JSON string in database)
+          try {
+            const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+            return { key, value: parsed };
+          } catch {
+            // If not JSON, use as-is (shouldn't happen, but be safe)
+            return { key, value: rawValue };
+          }
+        } catch (err) {
+          console.log(`[evaluate] Could not fetch ${key} from database:`, err.message);
+          return { key, value: null };
+        }
+      })
+    );
+    
+    // Build settings object from database results
+    const dbSettings = {};
+    settingsResults.forEach(({ key, value }) => {
+      // Include all values from database (even empty strings - user explicitly set them)
+      if (value !== null && value !== undefined) {
+        dbSettings[key] = value;
+      }
+    });
+    
+    if (Object.keys(dbSettings).length > 0) {
+      aiProviderSettings = dbSettings;
+      console.log('[evaluate] ✅ Using AI provider settings from DATABASE (will work on Vercel):', {
+        provider: dbSettings.aiProvider || 'not set',
+        hasProvider: !!dbSettings.aiProvider,
+        hasGeminiKey: !!dbSettings.geminiApiKey,
+        hasGroqKey: !!dbSettings.groqApiKey,
+        hasHuggingfaceKey: !!dbSettings.huggingfaceApiKey,
+        hasKieKey: !!dbSettings.kieApiKey,
+        hasOpenaiKey: !!dbSettings.openaiApiKey,
+        configuredProviders: Object.keys(dbSettings).filter(k => k.includes('ApiKey') && dbSettings[k]).map(k => k.replace('ApiKey', '')),
+      });
+    } else {
+      console.log('[evaluate] ⚠️ No AI provider settings in database, using environment variables');
+    }
+  } catch (dbError) {
+    console.log('[evaluate] ⚠️ Could not fetch AI provider settings from database, using env vars:', dbError.message);
+  }
+
+  // Determine provider and check if API key is available
+  const provider = aiProviderSettings?.aiProvider || process.env.AI_PROVIDER || 'gemini';
+  const providerLower = provider.toLowerCase();
+  
+  const hasProviderKey = 
+    (providerLower === 'gemini' && (aiProviderSettings?.geminiApiKey || process.env.GEMINI_API_KEY)) ||
+    (providerLower === 'groq' && (aiProviderSettings?.groqApiKey || process.env.GROQ_API_KEY)) ||
+    (providerLower === 'huggingface' && (aiProviderSettings?.huggingfaceApiKey || process.env.HUGGINGFACE_API_KEY)) ||
+    (providerLower === 'kie' && (aiProviderSettings?.kieApiKey || process.env.KIE_API_KEY)) ||
+    (providerLower === 'openai' && (aiProviderSettings?.openaiApiKey || process.env.OPENAI_API_KEY));
+
+  if (!hasProviderKey) {
+    const providerName = providerLower === 'gemini' ? 'Gemini' : 
+                        providerLower === 'groq' ? 'Groq' :
+                        providerLower === 'huggingface' ? 'Hugging Face' :
+                        providerLower === 'kie' ? 'KIE AI' : 'OpenAI';
+    res.status(500).json({ 
+      error: `Missing ${providerName} API key. Please configure it in Settings page or set ${provider.toUpperCase()}_API_KEY in your .env.local file.`,
+      hint: providerLower === 'gemini' 
+        ? 'Get free API key from: https://makersuite.google.com/app/apikey'
+        : providerLower === 'groq'
+        ? 'Get free API key from: https://console.groq.com/keys'
+        : providerLower === 'huggingface'
+        ? 'Get free API key from: https://huggingface.co/settings/tokens'
+        : providerLower === 'kie'
+        ? 'Get API key from: https://www.kie-ai.com/'
+        : 'Get API key from: https://platform.openai.com/api-keys'
+    });
     return;
   }
 
@@ -347,22 +432,11 @@ export default async function handler(req, res) {
       .filter(Boolean)
       .join("\n\n");
 
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o",
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userContent },
-      ],
-    });
-
-    const content = completion.choices[0]?.message?.content;
+    // Use the AI provider abstraction layer with database settings
+    const content = await callAIProvider(SYSTEM_PROMPT, userContent, aiProviderSettings);
+    
     if (!content) {
-      res.status(500).json({ error: "No response from OpenAI." });
+      res.status(500).json({ error: "No response from AI provider." });
       return;
     }
 

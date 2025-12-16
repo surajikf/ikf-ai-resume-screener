@@ -260,3 +260,4 @@ async function setupTables() {
 
 setupTables().catch(console.error);
 
+

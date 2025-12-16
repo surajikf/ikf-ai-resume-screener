@@ -50,6 +50,12 @@ export default async function handler(req, res) {
       keys: Object.keys(settings),
       hasApiKey: !!settings.whatsappApiKey,
       hasCompanyId: !!settings.whatsappCompanyId,
+      hasAiProvider: !!settings.aiProvider,
+      hasGeminiKey: !!settings.geminiApiKey,
+      hasGroqKey: !!settings.groqApiKey,
+      hasHuggingfaceKey: !!settings.huggingfaceApiKey,
+      hasKieKey: !!settings.kieApiKey,
+      hasOpenaiKey: !!settings.openaiApiKey,
     });
 
     // Use a single connection to save all settings in a transaction

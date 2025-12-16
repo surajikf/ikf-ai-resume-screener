@@ -69,6 +69,14 @@ export default async function handler(req, res) {
         whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "689044bc84f5e822",
         whatsappTemplateName: "resume_screener_message01",
         whatsappLanguage: "en",
+        // AI Provider Settings - from environment variables or defaults
+        aiProvider: process.env.AI_PROVIDER || "gemini",
+        geminiApiKey: process.env.GEMINI_API_KEY || "",
+        groqApiKey: process.env.GROQ_API_KEY || "",
+        groqModel: process.env.GROQ_MODEL || "moonshotai/kimi-k2-instruct-0905", // Default to Kimi K2
+        huggingfaceApiKey: process.env.HUGGINGFACE_API_KEY || "",
+        kieApiKey: process.env.KIE_API_KEY || "",
+        openaiApiKey: process.env.OPENAI_API_KEY || "",
       };
       return res.status(200).json({
         success: true,
@@ -133,6 +141,14 @@ export default async function handler(req, res) {
         whatsappCompanyId: process.env.WHATSAPP_COMPANY_ID || "689044bc84f5e822",
         whatsappTemplateName: "resume_screener_message01",
         whatsappLanguage: "en",
+        // AI Provider Settings - from environment variables or defaults
+        aiProvider: process.env.AI_PROVIDER || "gemini",
+        geminiApiKey: process.env.GEMINI_API_KEY || "",
+        groqApiKey: process.env.GROQ_API_KEY || "",
+        groqModel: process.env.GROQ_MODEL || "moonshotai/kimi-k2-instruct-0905", // Default to Kimi K2
+        huggingfaceApiKey: process.env.HUGGINGFACE_API_KEY || "",
+        kieApiKey: process.env.KIE_API_KEY || "",
+        openaiApiKey: process.env.OPENAI_API_KEY || "",
     };
     
     // Merge: Start with defaults (includes env vars), then override with database values
@@ -148,6 +164,14 @@ export default async function handler(req, res) {
         if (dbValue !== null && dbValue !== undefined) {
           mergedSettings[key] = dbValue; // Use DB value even if empty (user explicitly cleared it)
           console.log(`[settings/get] Using DB value for ${key}:`, dbValue ? `***${String(dbValue).slice(-4)} (${String(dbValue).length} chars)` : 'empty string');
+        } else {
+          console.log(`[settings/get] ${key} not in DB, using default/env`);
+        }
+      } else if (key === 'aiProvider' || key === 'geminiApiKey' || key === 'groqApiKey' || key === 'groqModel' || key === 'huggingfaceApiKey' || key === 'kieApiKey' || key === 'openaiApiKey') {
+        // For AI provider settings, prioritize database values (user saved them)
+        if (dbValue !== null && dbValue !== undefined) {
+          mergedSettings[key] = dbValue; // Use DB value (even if empty - user explicitly set it)
+          console.log(`[settings/get] Using DB value for ${key}:`, dbValue ? (key.includes('ApiKey') ? `***${String(dbValue).slice(-4)} (${String(dbValue).length} chars)` : dbValue) : 'empty string');
         } else {
           console.log(`[settings/get] ${key} not in DB, using default/env`);
         }
@@ -289,6 +313,14 @@ export default async function handler(req, res) {
       whatsappCompanyId: "689044bc84f5e822",
       whatsappTemplateName: "resume_screener_message01",
       whatsappLanguage: "en",
+      // AI Provider Settings
+      aiProvider: process.env.AI_PROVIDER || "gemini",
+      geminiApiKey: process.env.GEMINI_API_KEY || "",
+      groqApiKey: process.env.GROQ_API_KEY || "",
+      groqModel: process.env.GROQ_MODEL || "moonshotai/kimi-k2-instruct-0905",
+      huggingfaceApiKey: process.env.HUGGINGFACE_API_KEY || "",
+      kieApiKey: process.env.KIE_API_KEY || "",
+      openaiApiKey: process.env.OPENAI_API_KEY || "",
     };
     return res.status(200).json({
       success: true,

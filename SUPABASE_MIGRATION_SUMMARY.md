@@ -143,3 +143,4 @@ All these routes now work with Supabase:
 - All existing API routes work without modification
 - The adapter handles the differences between MySQL and Supabase automatically
 
+
