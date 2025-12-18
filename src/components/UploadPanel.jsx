@@ -6,6 +6,7 @@ import {
 } from "react-icons/fa";
 import JDInputArea from "@/components/JDInputArea";
 import JDHistoryPanel from "@/components/JDHistoryPanel";
+import EvaluationProcessIndicator from "@/components/EvaluationProcessIndicator";
 
 const UploadPanel = ({
   jobDescription,
@@ -20,11 +21,25 @@ const UploadPanel = ({
   onEvaluate,
   onJDFileUpload,
   loading,
+  evaluatingFiles = new Map(),
 }) => {
   const [resumeFiles, setResumeFiles] = useState([]);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const fileInputRef = useRef(null);
+  
+  // Calculate evaluation progress from evaluatingFiles
+  const isEvaluating = (loading || (evaluatingFiles && evaluatingFiles.size > 0)) && resumeFiles.length > 0;
+  const totalEvaluating = resumeFiles.length;
+  
+  // Count completed evaluations
+  const evaluatingEntries = evaluatingFiles ? Array.from(evaluatingFiles.entries()) : [];
+  const evaluatingCount = evaluatingEntries.filter(([_, v]) => v && v.status === 'evaluating').length;
+  const errorCount = evaluatingEntries.filter(([_, v]) => v && v.status === 'error').length;
+  // Completed = total - currently evaluating (errors also count as "done")
+  const completedCount = totalEvaluating > 0 ? Math.max(0, totalEvaluating - evaluatingCount) : 0;
+  
+  const currentEvaluatingFile = evaluatingEntries.find(([_, v]) => v && v.status === 'evaluating')?.[0] || null;
 
   const formatFileSize = (size) => {
     if (!size && size !== 0) return "";
@@ -73,12 +88,39 @@ const UploadPanel = ({
     }
 
     setError("");
-    setStatus(`Starting evaluation of ${resumeFiles.length} resume(s)... Results will appear below as they complete.`);
+    setStatus("");
 
-    // Run all evaluations in parallel - results will appear one by one
-    const evaluationPromises = resumeFiles.map(file => 
-      onEvaluate({ resumeFile: file }).catch(error => {
-        return { file, error: error.message };
+    // Run evaluations with throttling to avoid rate limits
+    // Stagger requests to prevent hitting rate limits (3 seconds between each)
+    // This ensures we stay under the TPM (Tokens Per Minute) limit
+    const evaluationPromises = resumeFiles.map((file, index) => 
+      new Promise((resolve) => {
+        // Add delay between requests to avoid rate limiting
+        // 3 seconds between each request helps stay under 10K TPM limit
+        const delay = index * 3000; // Stagger requests by 3 seconds
+        
+        setTimeout(() => {
+          onEvaluate({ resumeFile: file })
+            .then(() => {
+              resolve({ file, success: true });
+            })
+            .catch(error => {
+              // Extract user-friendly error message
+              let errorMessage = error.message || 'Unknown error';
+              
+              // Simplify rate limit error messages
+              if (errorMessage.includes('Rate limit') || errorMessage.includes('429')) {
+                const retryMatch = errorMessage.match(/wait ([\d.]+) seconds/i);
+                if (retryMatch) {
+                  errorMessage = `Rate limit reached. Please wait ${Math.ceil(parseFloat(retryMatch[1]))} seconds and try again.`;
+                } else {
+                  errorMessage = 'Rate limit reached. Please wait a few seconds and try again, or evaluate fewer resumes at once.';
+                }
+              }
+              
+              resolve({ file, error: errorMessage });
+            });
+        }, delay);
       })
     );
 
@@ -94,7 +136,9 @@ const UploadPanel = ({
 
     if (failures.length === 0) {
       setStatus(`All ${resumeFiles.length} resume(s) evaluated successfully!`);
-      setTimeout(() => setStatus(""), 3000);
+      setTimeout(() => {
+        setStatus("");
+      }, 3000);
     } else if (failures.length === resumeFiles.length) {
       setError(
         `Failed to evaluate all resumes. Last error: ${
@@ -181,32 +225,33 @@ const UploadPanel = ({
           </label>
 
           {resumeFiles.length > 0 && (
-            <div className="mt-6 space-y-2">
+            <div className="mt-4 space-y-1">
               {resumeFiles.map((file) => (
                 <div
                   key={`${file.name}-${file.size}`}
-                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3"
+                  className="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-2.5 py-1.5 hover:bg-slate-100 transition-colors"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-slate-900">{file.name}</p>
-                    <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                  <div className="min-w-0 flex-1 flex items-center gap-2">
+                    <div className="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-blue-600"></div>
+                    <p className="truncate text-xs font-medium text-slate-700">{file.name}</p>
+                    <span className="flex-shrink-0 text-xs text-slate-400">({formatFileSize(file.size)})</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveFile(file)}
-                    className="ml-4 flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                    className="ml-2 flex-shrink-0 p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 transition-colors"
+                    title="Remove file"
                   >
-                    <FaTrashAlt />
-                    Remove
+                    <FaTrashAlt className="h-3 w-3" />
                   </button>
                 </div>
               ))}
               <button
                 type="button"
                 onClick={handleClearFiles}
-                className="text-sm font-medium text-slate-600 hover:text-red-600"
+                className="text-xs font-medium text-slate-500 hover:text-red-600 mt-1"
               >
-                Clear all files
+                Clear all
               </button>
             </div>
           )}
@@ -276,14 +321,24 @@ const UploadPanel = ({
 
       {/* Step 3: Evaluate Button */}
       <div className="sticky bottom-4 z-20">
-        <div className="rounded-lg bg-white border border-slate-200 p-4">
+        <div className="rounded-lg bg-white border border-slate-200 p-4 space-y-4">
+          {/* Process Indicator */}
+          {(loading || isEvaluating) && (
+            <EvaluationProcessIndicator
+              isEvaluating={loading || isEvaluating}
+              totalFiles={totalEvaluating}
+              completedFiles={totalEvaluating - evaluatingCount}
+              currentFileName={currentEvaluatingFile}
+            />
+          )}
+
           {error && (
-            <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
-          {!error && status && (
-            <div className="mb-4 rounded-lg border border-blue-300 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          {!error && status && !loading && (
+            <div className="rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-700">
               {status}
             </div>
           )}
@@ -312,7 +367,7 @@ const UploadPanel = ({
           </button>
           
           {!canEvaluate && (
-            <p className="mt-3 text-center text-xs text-slate-500">
+            <p className="text-center text-xs text-slate-500">
               {resumeFiles.length === 0 && !jobDescription.trim() && 'Upload resumes and add job description to continue'}
               {resumeFiles.length === 0 && jobDescription.trim() && 'Upload at least one resume to continue'}
               {resumeFiles.length > 0 && !jobDescription.trim() && 'Add a job description to continue'}

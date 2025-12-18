@@ -53,6 +53,10 @@ export default async function handler(req, res) {
       emailDraft,
       whatsappDraft,
       jobDescriptionId,
+      jobDescriptionTitle, // JD title for reference
+      jobDescriptionLink, // JD link for reference
+      jobDescriptionContent, // Full JD content
+      scanTimestamp, // When the scan was performed
       resumeFile, // Resume file data to save along with evaluation
     } = req.body;
 
@@ -191,35 +195,104 @@ export default async function handler(req, res) {
         candidateId = candidateInsert.insertId;
       }
 
-      // 2. Insert evaluation
+      // 2. Insert evaluation with all metadata
+      // Note: JD title, link, and content are stored in job_descriptions table
+      // and can be retrieved via JOIN. We link via job_description_id.
+      // If scanTimestamp is provided, use it; otherwise let database use DEFAULT NOW()
       const evaluationInsert = await executeQuery(
-        `INSERT INTO evaluations (
-          candidate_id, job_description_id, role_applied, company_location,
-          experience_ctc_notice_location, work_experience, verdict, match_score,
-          score_breakdown, key_strengths, gaps, education_gaps, experience_gaps,
-          better_suited_focus, email_draft, whatsapp_draft
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          candidateId,
-          jobDescriptionId || null,
-          roleApplied,
-          companyLocation || null,
-          experienceCtcNoticeLocation || null,
-          JSON.stringify(workExperience || []),
-          verdict,
-          matchScore,
-          JSON.stringify(scoreBreakdown || {}),
-          JSON.stringify(keyStrengths || []),
-          JSON.stringify(gaps || []),
-          JSON.stringify(educationGaps || []),
-          JSON.stringify(experienceGaps || []),
-          betterSuitedFocus || null,
-          JSON.stringify(emailDraft || {}),
-          JSON.stringify(whatsappDraft || {}),
-        ]
+        scanTimestamp
+          ? `INSERT INTO evaluations (
+              candidate_id, job_description_id, role_applied, company_location,
+              experience_ctc_notice_location, work_experience, verdict, match_score,
+              score_breakdown, key_strengths, gaps, education_gaps, experience_gaps,
+              better_suited_focus, email_draft, whatsapp_draft, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          : `INSERT INTO evaluations (
+              candidate_id, job_description_id, role_applied, company_location,
+              experience_ctc_notice_location, work_experience, verdict, match_score,
+              score_breakdown, key_strengths, gaps, education_gaps, experience_gaps,
+              better_suited_focus, email_draft, whatsapp_draft
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        scanTimestamp
+          ? [
+              candidateId,
+              jobDescriptionId || null,
+              roleApplied,
+              companyLocation || null,
+              experienceCtcNoticeLocation || null,
+              JSON.stringify(workExperience || []),
+              verdict,
+              matchScore,
+              JSON.stringify(scoreBreakdown || {}),
+              JSON.stringify(keyStrengths || []),
+              JSON.stringify(gaps || []),
+              JSON.stringify(educationGaps || []),
+              JSON.stringify(experienceGaps || []),
+              betterSuitedFocus || null,
+              JSON.stringify(emailDraft || {}),
+              JSON.stringify(whatsappDraft || {}),
+              new Date(scanTimestamp), // Use provided timestamp
+            ]
+          : [
+              candidateId,
+              jobDescriptionId || null,
+              roleApplied,
+              companyLocation || null,
+              experienceCtcNoticeLocation || null,
+              JSON.stringify(workExperience || []),
+              verdict,
+              matchScore,
+              JSON.stringify(scoreBreakdown || {}),
+              JSON.stringify(keyStrengths || []),
+              JSON.stringify(gaps || []),
+              JSON.stringify(educationGaps || []),
+              JSON.stringify(experienceGaps || []),
+              betterSuitedFocus || null,
+              JSON.stringify(emailDraft || {}),
+              JSON.stringify(whatsappDraft || {}),
+            ]
       );
 
       const evaluationId = evaluationInsert.insertId;
+
+      // Log all saved data for verification
+      console.log('[evaluations/save] ✅ Evaluation saved successfully:', {
+        evaluationId,
+        candidateId,
+        candidateName,
+        jobDescriptionId: jobDescriptionId || 'NOT LINKED',
+        jobDescriptionTitle: jobDescriptionTitle || 'N/A',
+        roleApplied,
+        verdict,
+        matchScore,
+        scanTimestamp: scanTimestamp || new Date().toISOString(),
+        hasResumeFile: !!resumeFile,
+        savedFields: {
+          candidate: {
+            name: candidateName,
+            email: candidateEmail || 'N/A',
+            whatsapp: candidateWhatsApp || 'N/A',
+            location: candidateLocation || 'N/A',
+            linkedin: linkedInUrl || 'N/A',
+          },
+          evaluation: {
+            role: roleApplied,
+            verdict,
+            matchScore,
+            workExperienceCount: workExperience?.length || 0,
+            keyStrengthsCount: keyStrengths?.length || 0,
+            gapsCount: gaps?.length || 0,
+            educationGapsCount: educationGaps?.length || 0,
+            experienceGapsCount: experienceGaps?.length || 0,
+          },
+          jobDescription: {
+            id: jobDescriptionId || 'NOT LINKED',
+            title: jobDescriptionTitle || 'N/A',
+            link: jobDescriptionLink || 'N/A',
+            contentLength: jobDescriptionContent?.length || 0,
+          },
+        },
+      });
 
       // 3. Save resume file if provided
       // Use Supabase Storage if available, otherwise fall back to BLOB storage

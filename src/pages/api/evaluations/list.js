@@ -86,7 +86,11 @@ export default async function handler(req, res) {
         c.current_company,
         c.total_experience_years,
         c.number_of_companies,
-        jd.title as job_title
+        jd.id as job_description_id,
+        jd.title as job_title,
+        jd.jd_link as job_description_link,
+        jd.description as job_description_content,
+        jd.created_at as job_description_created_at
       FROM evaluations e
       INNER JOIN candidates c ON e.candidate_id = c.id
       LEFT JOIN job_descriptions jd ON e.job_description_id = jd.id
@@ -156,7 +160,12 @@ export default async function handler(req, res) {
       whatsappDraft: JSON.parse(evaluation.whatsapp_draft || '{}'),
       createdAt: evaluation.created_at,
       updatedAt: evaluation.updated_at,
-      jobTitle: evaluation.job_title,
+      // Job Description details
+      jobDescriptionId: evaluation.job_description_id || null,
+      jobTitle: evaluation.job_title || null,
+      jobDescriptionLink: evaluation.job_description_link || null,
+      jobDescriptionContent: evaluation.job_description_content || null,
+      jobDescriptionCreatedAt: evaluation.job_description_created_at || null,
     }));
 
     // Get total count

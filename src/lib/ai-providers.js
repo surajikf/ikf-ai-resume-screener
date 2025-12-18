@@ -47,35 +47,104 @@ async function callGemini(systemPrompt, userContent, apiKey = null) {
 
 // Groq (very fast, free tier available)
 // Supports models like: llama-3.1-70b-versatile, moonshotai/kimi-k2-instruct-0905, mixtral-8x7b-32768
-async function callGroq(systemPrompt, userContent, apiKey = null, model = null) {
-  const Groq = require('groq-sdk');
-  
-  const key = apiKey || process.env.GROQ_API_KEY;
+// Uses direct HTTP API call (OpenAI-compatible endpoint)
+// Includes rate limit handling with automatic retry
+async function callGroq(systemPrompt, userContent, apiKey = null, model = null, retryCount = 0) {
+  const key = apiKey || process.env.GROQ_API_KEY || 'YOUR_SECRET_HERE';
   if (!key) {
     throw new Error('GROQ_API_KEY is not set. Get it from https://console.groq.com/keys');
   }
 
-  const groq = new Groq({
-    apiKey: key,
-  });
-
   // Use Kimi K2 as default (enhanced coding capabilities, 256K context)
-  // Or use model from settings/env, fallback to llama-3.1-70b-versatile
+  // Or use model from settings/env, fallback to moonshotai/kimi-k2-instruct-0905
   const groqModel = model || process.env.GROQ_MODEL || 'moonshotai/kimi-k2-instruct-0905';
   
-  console.log(`[Groq] Using model: ${groqModel}`);
+  const maxRetries = 3;
+  
+  console.log(`[Groq] Using model: ${groqModel}${retryCount > 0 ? ` (retry ${retryCount}/${maxRetries})` : ''}`);
 
-  const completion = await groq.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userContent },
-    ],
-    model: groqModel,
-    response_format: { type: 'json_object' },
-    temperature: 0.7,
-  });
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: groqModel,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: userContent
+          }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+      }),
+    });
 
-  return completion.choices[0]?.message?.content || '';
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: { message: errorText } };
+      }
+
+      // Handle rate limit (429) with retry
+      if (response.status === 429 && retryCount < maxRetries) {
+        // Extract retry-after time from error message
+        const retryAfterMatch = errorData.error?.message?.match(/try again in ([\d.]+)s/i);
+        const retryAfterSeconds = retryAfterMatch ? Math.ceil(parseFloat(retryAfterMatch[1])) : Math.pow(2, retryCount) * 2; // Exponential backoff: 2s, 4s, 8s
+        
+        console.log(`[Groq] ⚠️ Rate limit reached. Waiting ${retryAfterSeconds}s before retry (attempt ${retryCount + 1}/${maxRetries})...`);
+        
+        // Wait for the specified time plus a small buffer
+        await new Promise(resolve => setTimeout(resolve, (retryAfterSeconds + 1) * 1000));
+        
+        // Retry the request
+        return await callGroq(systemPrompt, userContent, apiKey, model, retryCount + 1);
+      }
+
+      // For rate limit errors after max retries, provide user-friendly message
+      if (response.status === 429) {
+        const retryAfterMatch = errorData.error?.message?.match(/try again in ([\d.]+)s/i);
+        const retryAfterSeconds = retryAfterMatch ? Math.ceil(parseFloat(retryAfterMatch[1])) : 10;
+        throw new Error(`Rate limit reached. Please wait ${retryAfterSeconds} seconds and try again. To avoid this, evaluate fewer resumes at once or upgrade your Groq plan.`);
+      }
+
+      // For other errors, throw error
+      console.error(`[Groq] API error (${response.status}):`, errorText);
+      throw new Error(`Groq API error (${response.status}): ${errorText}`);
+    }
+
+    const result = await response.json();
+    const content = result.choices?.[0]?.message?.content || '';
+    
+    if (!content) {
+      console.error('[Groq] No content in response:', result);
+      throw new Error('Groq API returned empty response');
+    }
+
+    console.log(`[Groq] ✅ Successfully received response (${content.length} chars)`);
+    return content;
+  } catch (error) {
+    // If it's a rate limit error and we haven't retried yet, try one more time
+    if (error.message?.includes('429') && retryCount < maxRetries) {
+      const retryDelay = Math.pow(2, retryCount) * 2; // Exponential backoff
+      console.log(`[Groq] Rate limit error detected. Retrying after ${retryDelay}s...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay * 1000));
+      return await callGroq(systemPrompt, userContent, apiKey, model, retryCount + 1);
+    }
+    
+    console.error('[Groq] Request failed:', error.message);
+    throw error;
+  }
 }
 
 // Hugging Face Inference API

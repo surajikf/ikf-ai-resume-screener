@@ -118,6 +118,7 @@ export default function Home() {
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [selectedResume, setSelectedResume] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [topCandidatesFilter, setTopCandidatesFilter] = useState('all'); // 'all', '5', '10', '15', '20', '25', '50'
   const isJDFromSavedRef = useRef(false); // Track if current JD is from a saved JD (should not be auto-saved)
 
   // Function to load evaluations (reusable)
@@ -1289,11 +1290,44 @@ export default function Home() {
 
       // Save to database
       try {
+        // First, find or create the job description to get its ID
+        let jobDescriptionId = null;
+        const jdTitle = data?.metadata?.jobDescriptionTitle || jobTitle || roleApplied || 'Untitled Job';
+        const jdLink = data?.metadata?.jdLink || '';
+        
+        if (jobDescription && jobDescription.trim().length > 0) {
+          try {
+            const jdResponse = await fetch('/api/job-descriptions/find-or-create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: jdTitle,
+                description: jobDescription,
+                jdLink: jdLink,
+              }),
+            });
+            
+            if (jdResponse.ok) {
+              const jdData = await jdResponse.json();
+              if (jdData.success && jdData.data?.id) {
+                jobDescriptionId = jdData.data.id;
+                console.log('[index] Job description found/created:', {
+                  id: jobDescriptionId,
+                  title: jdTitle,
+                  isNew: jdData.data.isNew,
+                });
+              }
+            }
+          } catch (jdError) {
+            console.error('[index] Error finding/creating JD:', jdError);
+            // Continue without JD ID - evaluation will still be saved
+          }
+        }
+        
         const saveResponse = await fetch('/api/evaluations/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            candidateName,
             candidateName,
             candidateEmail: summary.candidateEmail || '',
             candidateWhatsApp: summary.candidateWhatsApp || '',
@@ -1319,6 +1353,11 @@ export default function Home() {
             betterSuitedFocus: summary.betterSuitedFocus || '',
             emailDraft,
             whatsappDraft,
+            jobDescriptionId, // Link to job description
+            jobDescriptionTitle: jdTitle, // Save JD title for reference
+            jobDescriptionLink: jdLink, // Save JD link for reference
+            jobDescriptionContent: jobDescription, // Save full JD content
+            scanTimestamp: new Date().toISOString(), // Save when scan was performed
             // Include resume file data to save in same transaction
             resumeFile: data?.metadata?.resumeFile || null,
           }),
@@ -1427,7 +1466,27 @@ export default function Home() {
     }
   };
 
-  const boardEvaluations = useMemo(() => evaluations, [evaluations]);
+  // Filter and sort evaluations for top candidates
+  const boardEvaluations = useMemo(() => {
+    let filtered = [...evaluations];
+    
+    // Sort by match score (descending) to get top candidates
+    filtered.sort((a, b) => {
+      const scoreA = a.matchScore || 0;
+      const scoreB = b.matchScore || 0;
+      return scoreB - scoreA; // Higher score first
+    });
+    
+    // Apply top N filter if not 'all'
+    if (topCandidatesFilter !== 'all') {
+      const topN = parseInt(topCandidatesFilter, 10);
+      if (!isNaN(topN) && topN > 0) {
+        filtered = filtered.slice(0, topN);
+      }
+    }
+    
+    return filtered;
+  }, [evaluations, topCandidatesFilter]);
   const verdictCounts = useMemo(() => {
     return evaluations.reduce(
       (acc, evaluation) => {
@@ -1523,6 +1582,7 @@ export default function Home() {
               onEvaluate={handleEvaluate}
               onJDFileUpload={handleJDFileUpload}
               loading={loading}
+              evaluatingFiles={evaluatingFiles}
             />
 
             {globalError && (
@@ -1582,22 +1642,41 @@ export default function Home() {
                           Active Scan Session
                         </p>
                         <p className="text-xs text-blue-700 mt-0.5">
-                          {evaluations.length} candidate{evaluations.length !== 1 ? 's' : ''} evaluated • 
-                          {evaluations[0]?.jobTitle && ` Position: ${evaluations[0].jobTitle} • `}
-                          Evaluations persist until you reset or start a new scan
+                          {evaluations.length} candidate{evaluations.length !== 1 ? 's' : ''} evaluated
+                          {topCandidatesFilter !== 'all' && ` • Showing top ${topCandidatesFilter} by score`}
+                          {evaluations[0]?.jobTitle && ` • Position: ${evaluations[0].jobTitle}`}
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={handleResetScan}
-                      className="inline-flex items-center gap-1.5 rounded border border-blue-300 bg-white px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                      title="Reset and start a new scan"
-                    >
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Reset Scan
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Top Candidates Filter */}
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-medium text-blue-900">Top:</label>
+                        <select
+                          value={topCandidatesFilter}
+                          onChange={(e) => setTopCandidatesFilter(e.target.value)}
+                          className="rounded border border-blue-300 bg-white px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="all">All</option>
+                          <option value="5">Top 5</option>
+                          <option value="10">Top 10</option>
+                          <option value="15">Top 15</option>
+                          <option value="20">Top 20</option>
+                          <option value="25">Top 25</option>
+                          <option value="50">Top 50</option>
+                        </select>
+                      </div>
+                      <button
+                        onClick={handleResetScan}
+                        className="inline-flex items-center gap-1.5 rounded border border-blue-300 bg-white px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                        title="Reset and start a new scan"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Reset Scan
+                      </button>
+                    </div>
                   </div>
                 </div>
                 
