@@ -49,10 +49,18 @@ async function callGemini(systemPrompt, userContent, apiKey = null) {
 // Supports models like: llama-3.1-70b-versatile, moonshotai/kimi-k2-instruct-0905, mixtral-8x7b-32768
 // Uses direct HTTP API call (OpenAI-compatible endpoint)
 // Includes rate limit handling with automatic retry
+// 
+// API Key Priority (set via callAIProvider):
+// 1. Database (Settings page) - Highest priority
+// 2. Environment variable (process.env.GROQ_API_KEY) - Fallback
+// 
+// The apiKey parameter comes from settings?.groqApiKey which is loaded from the database
 async function callGroq(systemPrompt, userContent, apiKey = null, model = null, retryCount = 0) {
+  // apiKey parameter is passed from callAIProvider, which gets it from database settings
+  // Fallback to environment variable only if not provided from database
   const key = apiKey || process.env.GROQ_API_KEY;
   if (!key) {
-    throw new Error('GROQ_API_KEY is not set. Please set it in your environment variables or Settings. Get it from https://console.groq.com/keys');
+    throw new Error('GROQ_API_KEY is not set. Please set it in Settings page (saved to database) or environment variables. Get it from https://console.groq.com/keys');
   }
 
   // Use Kimi K2 as default (enhanced coding capabilities, 256K context)
