@@ -1,4 +1,5 @@
 # Script to remove API key from git history
+# IMPORTANT: Replace YOUR_SECRET_HERE with the actual secret value when running this script
 $secret = "YOUR_SECRET_HERE"
 $file = "src/lib/ai-providers.js"
 
