@@ -50,9 +50,9 @@ async function callGemini(systemPrompt, userContent, apiKey = null) {
 // Uses direct HTTP API call (OpenAI-compatible endpoint)
 // Includes rate limit handling with automatic retry
 async function callGroq(systemPrompt, userContent, apiKey = null, model = null, retryCount = 0) {
-  const key = apiKey || process.env.GROQ_API_KEY || 'YOUR_SECRET_HERE';
+  const key = apiKey || process.env.GROQ_API_KEY;
   if (!key) {
-    throw new Error('GROQ_API_KEY is not set. Get it from https://console.groq.com/keys');
+    throw new Error('GROQ_API_KEY is not set. Please set it in your environment variables or Settings. Get it from https://console.groq.com/keys');
   }
 
   // Use Kimi K2 as default (enhanced coding capabilities, 256K context)
