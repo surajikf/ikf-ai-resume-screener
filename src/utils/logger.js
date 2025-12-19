@@ -101,7 +101,7 @@ export const logPerformance = (operation, duration, context = '') => {
 };
 
 // Export default logger object
-export default {
+const logger = {
   debug,
   info,
   warn,
@@ -110,3 +110,5 @@ export default {
   logResponse,
   logPerformance,
 };
+
+export default logger;

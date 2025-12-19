@@ -119,12 +119,12 @@ export default function ResetDatabase() {
           )}
 
           <div className="mt-6 pt-6 border-t border-slate-200">
-            <a
+            <Link
               href="/candidate-database"
               className="text-blue-600 hover:underline"
             >
               ← Back to Candidate Database
-            </a>
+            </Link>
           </div>
         </div>
       </div>

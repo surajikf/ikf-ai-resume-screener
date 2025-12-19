@@ -24,9 +24,9 @@ export default async function handler(req, res) {
     
     // Group evaluations by candidate_id in JavaScript (more reliable than SQL GROUP BY with subqueries)
     const evalStatsMap = {};
-    allEvals.forEach(eval => {
-      if (eval.candidate_id != null) {
-        const candidateId = String(eval.candidate_id);
+    allEvals.forEach(evaluation => {
+      if (evaluation.candidate_id != null) {
+        const candidateId = String(evaluation.candidate_id);
         if (!evalStatsMap[candidateId]) {
           evalStatsMap[candidateId] = {
             candidate_id: candidateId,
@@ -38,9 +38,9 @@ export default async function handler(req, res) {
         }
         evalStatsMap[candidateId].eval_count++;
         evalStatsMap[candidateId].evaluations.push({
-          id: eval.id,
-          verdict: eval.verdict,
-          created_at: eval.created_at,
+          id: evaluation.id,
+          verdict: evaluation.verdict,
+          created_at: evaluation.created_at,
         });
       }
     });

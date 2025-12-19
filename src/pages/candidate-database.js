@@ -119,7 +119,7 @@ export default function CandidateDatabase() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, verdictFilter, sortBy, sortOrder, pagination.limit, minExperience, maxExperience, minMatchScore, maxMatchScore, locationFilter, companyFilter, designationFilter]);
+  }, [searchTerm, verdictFilter, sortBy, sortOrder, pagination.limit, pagination.offset, minExperience, maxExperience, minMatchScore, maxMatchScore, locationFilter, companyFilter, designationFilter]);
 
   useEffect(() => {
     logger.debug('useEffect triggered - fetching candidates with filters', 'CandidateDatabase', {

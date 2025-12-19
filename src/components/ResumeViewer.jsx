@@ -109,7 +109,7 @@ const ResumeViewer = ({ evaluationId, candidateName, onClose }) => {
         URL.revokeObjectURL(resumeData.fileUrl);
       }
     };
-  }, [evaluationId]);
+  }, [evaluationId, resumeData?.fileUrl, resumeData?.source]);
 
   const handleDownload = async () => {
     if (!resumeData || !resumeData.fileUrl) {

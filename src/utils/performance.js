@@ -38,7 +38,8 @@ export const useThrottle = (callback, delay) => {
  * Memoize expensive calculations
  */
 export const useMemoizedValue = (value, deps) => {
-  return useMemo(() => value, deps);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => value, Array.isArray(deps) ? [...deps, value] : [deps, value]);
 };
 
 /**

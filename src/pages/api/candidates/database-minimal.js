@@ -47,15 +47,15 @@ export default async function handler(req, res) {
     // Step 3: Calculate stats
     const statsByCandidate = {};
     if (evaluationsResult.success && Array.isArray(evaluationsResult.data)) {
-      evaluationsResult.data.forEach(eval => {
-        const cid = String(eval.candidate_id);
+      evaluationsResult.data.forEach(evaluation => {
+        const cid = String(evaluation.candidate_id);
         if (!statsByCandidate[cid]) {
           statsByCandidate[cid] = { count: 0, latest: null, latestVerdict: null };
         }
         statsByCandidate[cid].count++;
-        if (!statsByCandidate[cid].latest || new Date(eval.created_at) > new Date(statsByCandidate[cid].latest)) {
-          statsByCandidate[cid].latest = eval.created_at;
-          statsByCandidate[cid].latestVerdict = eval.verdict;
+        if (!statsByCandidate[cid].latest || new Date(evaluation.created_at) > new Date(statsByCandidate[cid].latest)) {
+          statsByCandidate[cid].latest = evaluation.created_at;
+          statsByCandidate[cid].latestVerdict = evaluation.verdict;
         }
       });
     }
