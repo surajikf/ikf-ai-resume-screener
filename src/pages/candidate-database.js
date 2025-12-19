@@ -70,6 +70,15 @@ export default function CandidateDatabase() {
         params.append("verdict", verdictFilter);
       }
 
+      // Add filter parameters
+      if (minExperience) params.append("minExperience", minExperience);
+      if (maxExperience) params.append("maxExperience", maxExperience);
+      if (minMatchScore) params.append("minMatchScore", minMatchScore);
+      if (maxMatchScore) params.append("maxMatchScore", maxMatchScore);
+      if (locationFilter) params.append("location", locationFilter);
+      if (companyFilter) params.append("company", companyFilter);
+      if (designationFilter) params.append("designation", designationFilter);
+
       const { data, response } = await fetchJSON(`/api/candidates/database?${params.toString()}`, {}, { maxRetries: 2 });
       
       if (!response.ok || !data.success) {
@@ -127,10 +136,16 @@ export default function CandidateDatabase() {
       verdictFilter,
       sortBy,
       sortOrder,
+      minExperience,
+      maxExperience,
+      minMatchScore,
+      maxMatchScore,
+      locationFilter,
+      companyFilter,
+      designationFilter,
     });
     fetchCandidates(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, verdictFilter, sortBy, sortOrder]);
+  }, [searchTerm, verdictFilter, sortBy, sortOrder, minExperience, maxExperience, minMatchScore, maxMatchScore, locationFilter, companyFilter, designationFilter, fetchCandidates]);
 
   const handleLoadMore = () => {
     if (!loading && pagination.hasMore) {
