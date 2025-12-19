@@ -1,12 +1,21 @@
 import mysql from 'mysql2/promise';
 
 // Database connection configuration (optimized for performance)
+// All credentials must be provided via environment variables
+const requiredEnvVars = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingVars.length > 0) {
+  console.error('[db-mysql] Missing required environment variables:', missingVars.join(', '));
+  console.error('[db-mysql] Please set DB_HOST, DB_NAME, DB_USER, and DB_PASSWORD in your environment variables.');
+}
+
 const dbConfig = {
-  host: process.env.DB_HOST || '192.168.2.100',
-  port: process.env.DB_PORT || 3306,
-  database: process.env.DB_NAME || 'db_IKF_AI_RESUME',
-  user: process.env.DB_USER || 'dbo_IKF_AI_RESUME',
-  password: process.env.DB_PASSWORD || 'Vxazm1)zRnR3Ocmm',
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT || '3306', 10),
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
   waitForConnections: true,
   connectionLimit: 2, // Very low limit to prevent "too many connections" error
   queueLimit: 0,
@@ -26,8 +35,13 @@ const dbConfig = {
   idleTimeout: 30000,
 };
 
-// Create connection pool
-let pool = mysql.createPool(dbConfig);
+// Create connection pool only if required vars are present
+let pool = null;
+if (missingVars.length === 0) {
+  pool = mysql.createPool(dbConfig);
+} else {
+  console.warn('[db-mysql] Connection pool not created due to missing environment variables.');
+}
 
 // Function to reset the connection pool (close all connections and recreate)
 export async function resetPool() {
@@ -55,6 +69,13 @@ export function getPoolStats() {
 
 // Test connection function with retry logic
 export async function testConnection(retryCount = 0) {
+  if (!pool) {
+    return { 
+      success: false, 
+      message: 'Database connection pool not initialized. Please set DB_HOST, DB_NAME, DB_USER, and DB_PASSWORD environment variables.' 
+    };
+  }
+  
   let connection = null;
   const maxRetries = 2;
   
@@ -100,6 +121,9 @@ export async function testConnection(retryCount = 0) {
 
 // Execute query helper with proper connection management
 export async function query(sql, params = []) {
+  if (!pool) {
+    throw new Error('Database connection pool not initialized. Please set DB_HOST, DB_NAME, DB_USER, and DB_PASSWORD environment variables.');
+  }
   let connection = null;
   try {
     const [results] = await pool.execute(sql, params);
@@ -130,5 +154,6 @@ export async function getConnection() {
 }
 
 export default pool;
+
 
 

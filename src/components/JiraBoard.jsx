@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import CandidateCard from "@/components/CandidateCard";
 import BulkSendModal from "@/components/BulkSendModal";
 import {
@@ -9,6 +9,8 @@ import {
   FaEnvelope,
   FaWhatsapp,
   FaSpinner,
+  FaSortUp,
+  FaSortDown,
 } from "react-icons/fa";
 
 const columnConfig = [
@@ -36,6 +38,8 @@ const JiraBoard = ({ evaluations, onSelectCandidate, onViewResume, onBulkSendEma
   const [bulkSending, setBulkSending] = useState({});
   const [bulkStatus, setBulkStatus] = useState({});
   const [bulkModal, setBulkModal] = useState({ isOpen: false, type: null, candidates: null });
+  const [sortBy, setSortBy] = useState('latest'); // 'id', 'experience', 'latest', 'evaluations'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
   
   // Create loading placeholders for files being evaluated
   // Safely handle Map - check if it's actually a Map instance
@@ -56,12 +60,82 @@ const JiraBoard = ({ evaluations, onSelectCandidate, onViewResume, onBulkSendEma
     }
   } catch (err) {
     // Silently fail if Map operations don't work (e.g., during SSR)
-    console.log('Error processing evaluatingFiles:', err);
+    // Silently fail if Map operations don't work (e.g., during SSR)
+    // Error is non-critical, just log for debugging
   }
+  
+  // Count evaluations per candidate (by email or name)
+  const evaluationCounts = useMemo(() => {
+    const counts = {};
+    evaluations.forEach(evaluation => {
+      const key = evaluation.candidateEmail || evaluation.candidateName || evaluation.id;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+  }, [evaluations]);
+  
+  // Sort function
+  const sortEvaluations = (items) => {
+    const sorted = [...items].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'id':
+          aValue = a.databaseId || a.id || 0;
+          bValue = b.databaseId || b.id || 0;
+          break;
+        case 'experience':
+          aValue = a.totalExperienceYears || 0;
+          bValue = b.totalExperienceYears || 0;
+          break;
+        case 'latest':
+          // Sort by createdAt (latest evaluation date)
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        case 'evaluations':
+          // Sort by number of evaluations for this candidate
+          const aKey = a.candidateEmail || a.candidateName || a.id;
+          const bKey = b.candidateEmail || b.candidateName || b.id;
+          aValue = evaluationCounts[aKey] || 1;
+          bValue = evaluationCounts[bKey] || 1;
+          break;
+        default:
+          return 0;
+      }
+      
+      // Handle numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      return 0;
+    });
+    
+    return sorted;
+  };
+  
+  const handleSortChange = (newSortBy) => {
+    if (sortBy === newSortBy) {
+      // Toggle sort order if clicking the same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new sort field and default to desc
+      setSortBy(newSortBy);
+      setSortOrder('desc');
+    }
+  };
   
   const grouped = columnConfig.map((column) => ({
     ...column,
-    items: evaluations.filter((item) => item.verdict === column.key),
+    items: sortEvaluations(evaluations.filter((item) => item.verdict === column.key)),
   }));
   
   const hasAnyCandidates = evaluations.length > 0;
@@ -131,9 +205,45 @@ const JiraBoard = ({ evaluations, onSelectCandidate, onViewResume, onBulkSendEma
         <h2 className="text-lg font-semibold text-slate-900">
           Candidates
         </h2>
-        <span className="text-xs text-slate-500">
-          {evaluations.length} total
-        </span>
+        <div className="flex items-center gap-3">
+          {/* Sort Dropdown */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-600 font-medium">Sort by:</label>
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => handleSortChange(e.target.value)}
+                className="appearance-none rounded-md border border-slate-300 bg-white px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="latest">Latest Evaluation</option>
+                <option value="id">ID</option>
+                <option value="experience">Experience</option>
+                <option value="evaluations">Evaluations</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                {sortOrder === 'asc' ? (
+                  <FaSortUp className="text-slate-400 text-xs" />
+                ) : (
+                  <FaSortDown className="text-slate-400 text-xs" />
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="flex items-center justify-center rounded-md border border-slate-300 bg-white p-1.5 text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+            >
+              {sortOrder === 'asc' ? (
+                <FaSortUp className="text-xs" />
+              ) : (
+                <FaSortDown className="text-xs" />
+              )}
+            </button>
+          </div>
+          <span className="text-xs text-slate-500">
+            {evaluations.length} total
+          </span>
+        </div>
       </header>
 
       {!hasAnyCandidates && !hasLoadingItems ? (

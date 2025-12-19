@@ -160,8 +160,11 @@ export async function query(sql, params = []) {
               const column = aliasMatch[2];
               const alias = aliasMatch[3];
               // If it's a foreign table column, use foreign_table(column) format
-              if (foreignTables.includes(table)) {
-                return alias ? `${table}(${column})` : `${table}(${column})`;
+              // Check if table is in foreignTableMap (by alias) or foreignTableNames (by actual name)
+              const isForeignTable = foreignTableMap[table] || foreignTableNames.includes(table);
+              if (isForeignTable) {
+                const actualTableName = foreignTableMap[table] || table;
+                return alias ? `${actualTableName}(${column})` : `${actualTableName}(${column})`;
               }
               // Main table column
               return column;
@@ -543,6 +546,82 @@ export async function query(sql, params = []) {
       const { data, error } = await query.select();
       if (error) throw error;
       return { success: true, data: data || [] };
+    }
+    
+    // DELETE queries
+    if (sqlUpper.startsWith('DELETE')) {
+      const tableMatch = sql.match(/FROM\s+[`"]?(\w+)[`"]?/i);
+      if (!tableMatch) {
+        throw new Error('Could not parse table name from DELETE SQL');
+      }
+      const tableName = tableMatch[1];
+      
+      // Build Supabase delete query
+      let deleteQuery = supabase.from(tableName).delete();
+      
+      // Handle WHERE clause
+      const whereMatch = sql.match(/WHERE\s+(.+?)(?:\s+ORDER|\s+LIMIT|$)/i);
+      if (whereMatch) {
+        const whereClause = whereMatch[1];
+        let paramIndex = 0;
+        
+        // Handle multiple WHERE conditions
+        const conditions = whereClause.split(/\s+AND\s+/i);
+        for (const condition of conditions) {
+          const keyMatch = condition.match(/(\w+)\s*=\s*\?/);
+          if (keyMatch && params.length > paramIndex) {
+            deleteQuery = deleteQuery.eq(keyMatch[1], params[paramIndex]);
+            paramIndex++;
+          }
+        }
+      }
+      
+      // For DELETE without WHERE (DELETE FROM table), we need to delete all records
+      // Supabase requires at least one filter for security, so we'll fetch all IDs first, then delete in batches
+      if (!whereMatch) {
+        console.log('[db-supabase] DELETE without WHERE - fetching all records first...');
+        // First, get all IDs
+        const { data: allRecords, error: fetchError } = await supabase
+          .from(tableName)
+          .select('id')
+          .limit(10000); // Supabase limit
+        
+        if (fetchError) throw fetchError;
+        
+        if (allRecords && allRecords.length > 0) {
+          // Delete in batches (Supabase allows up to 1000 items in .in())
+          const batchSize = 1000;
+          let deletedCount = 0;
+          
+          for (let i = 0; i < allRecords.length; i += batchSize) {
+            const batch = allRecords.slice(i, i + batchSize);
+            const ids = batch.map(r => r.id).filter(id => id != null);
+            
+            if (ids.length > 0) {
+              const { error: deleteError } = await supabase
+                .from(tableName)
+                .delete()
+                .in('id', ids);
+              
+              if (deleteError) throw deleteError;
+              deletedCount += ids.length;
+            }
+          }
+          
+          console.log(`[db-supabase] Deleted ${deletedCount} records from ${tableName}`);
+          return { success: true, data: [], affectedRows: deletedCount };
+        } else {
+          // No records to delete
+          return { success: true, data: [], affectedRows: 0 };
+        }
+      } else {
+        // DELETE with WHERE clause
+        const { data, error } = await deleteQuery;
+        if (error) throw error;
+        
+        // Return success with affected rows count
+        return { success: true, data: data || [], affectedRows: Array.isArray(data) ? data.length : 0 };
+      }
     }
     
     // CREATE TABLE (for migrations)

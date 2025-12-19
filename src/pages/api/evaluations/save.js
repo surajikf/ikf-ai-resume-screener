@@ -60,6 +60,15 @@ export default async function handler(req, res) {
       resumeFile, // Resume file data to save along with evaluation
     } = req.body;
 
+    // Log the verdict to ensure all verdicts are being processed
+    console.log('[evaluations/save] Processing evaluation with verdict:', verdict, {
+      candidateName,
+      verdict,
+      hasEmail: !!candidateEmail,
+      hasWhatsApp: !!candidateWhatsApp,
+      note: 'ALL verdicts (Recommended, Partially Suitable, Not Suitable) should be saved',
+    });
+
     // Start transaction by getting connection
     const connection = await getConnection();
     await connection.beginTransaction();
@@ -105,6 +114,11 @@ export default async function handler(req, res) {
         );
         if (emailResults.length > 0) {
           candidateId = emailResults[0].id;
+          console.log('[evaluations/save] ✅ Matched existing candidate by EMAIL:', {
+            candidateId,
+            email: candidateEmail,
+            candidateName,
+          });
         }
       }
 
@@ -116,6 +130,11 @@ export default async function handler(req, res) {
         );
         if (whatsappResults.length > 0) {
           candidateId = whatsappResults[0].id;
+          console.log('[evaluations/save] ✅ Matched existing candidate by WHATSAPP:', {
+            candidateId,
+            whatsapp: candidateWhatsApp,
+            candidateName,
+          });
         }
       }
 
@@ -128,19 +147,35 @@ export default async function handler(req, res) {
         );
         if (linkedinResults.length > 0) {
           candidateId = linkedinResults[0].id;
+          console.log('[evaluations/save] ✅ Matched existing candidate by LINKEDIN:', {
+            candidateId,
+            linkedin: linkedInUrl,
+            candidateName,
+          });
         }
       }
 
-      // Strategy 4: Fuzzy name matching (less reliable)
+      // Strategy 4: Name matching - DISABLED for safety
+      // Name matching is too risky and can incorrectly match different people with the same name
+      // We only match by reliable identifiers: email, WhatsApp, or LinkedIn
+      // If none of these match, we create a new candidate record
       if (!candidateId) {
-        const normalizedName = candidateName.trim().toLowerCase().replace(/\s+/g, ' ');
-        const [nameResults] = await connection.execute(
-          `SELECT id FROM candidates WHERE LOWER(TRIM(REPLACE(candidate_name, '  ', ' '))) = ? LIMIT 1`,
-          [normalizedName]
-        );
-        if (nameResults.length > 0) {
-          candidateId = nameResults[0].id;
-        }
+        console.log('[evaluations/save] ℹ️ No match found by email/WhatsApp/LinkedIn - will create new candidate:', {
+          candidateName,
+          hasEmail: !!candidateEmail,
+          hasWhatsApp: !!candidateWhatsApp,
+          hasLinkedIn: !!linkedInUrl,
+          note: 'Name matching is disabled to prevent incorrect matches',
+        });
+      }
+      
+      if (!candidateId) {
+        console.log('[evaluations/save] 🆕 No match found - will CREATE NEW candidate:', {
+          candidateName,
+          candidateEmail: candidateEmail || 'N/A',
+          candidateWhatsApp: candidateWhatsApp || 'N/A',
+          linkedInUrl: linkedInUrl || 'N/A',
+        });
       }
 
       // Update existing candidate or create new one
@@ -193,6 +228,11 @@ export default async function handler(req, res) {
           ]
         );
         candidateId = candidateInsert.insertId;
+        console.log('[evaluations/save] 🆕 Created NEW candidate:', {
+          candidateId,
+          candidateName,
+          candidateEmail: candidateEmail || 'N/A',
+        });
       }
 
       // 2. Insert evaluation with all metadata
@@ -256,6 +296,7 @@ export default async function handler(req, res) {
       const evaluationId = evaluationInsert.insertId;
 
       // Log all saved data for verification
+      console.log('[evaluations/save] ========== EVALUATION SAVED ==========');
       console.log('[evaluations/save] ✅ Evaluation saved successfully:', {
         evaluationId,
         candidateId,
@@ -263,7 +304,7 @@ export default async function handler(req, res) {
         jobDescriptionId: jobDescriptionId || 'NOT LINKED',
         jobDescriptionTitle: jobDescriptionTitle || 'N/A',
         roleApplied,
-        verdict,
+        verdict, // IMPORTANT: This should be saved regardless of verdict value
         matchScore,
         scanTimestamp: scanTimestamp || new Date().toISOString(),
         hasResumeFile: !!resumeFile,

@@ -21,6 +21,11 @@ import { getEvaluations as getStoredEvaluations, saveEvaluations, addEvaluation,
 import { syncEvaluationsToSupabase, syncJobDescriptionsToSupabase } from "@/utils/syncToSupabase";
 import { formatErrorMessage, logError, validateEvaluation, validateJobDescription, validateFile, safeAsync } from "@/utils/errorHandler";
 import { confirm, prompt, alert as swalAlert } from "@/utils/swal";
+import { fetchWithRetry, fetchJSON } from "@/utils/fetchWithRetry";
+import { toast } from "@/utils/toast";
+import { validateResumeFile, validateJobDescription as validateJD } from "@/utils/validation";
+import { sanitizeText, sanitizeEmail, sanitizePhone, sanitizeURL, sanitizeFileName } from "@/utils/inputSanitizer";
+import logger from "@/utils/logger";
 
 // Helper function to convert duration string to months
 const durationToMonths = (duration) => {
@@ -133,8 +138,7 @@ export default function Home() {
     
     // Then load from database (will update if available)
     try {
-      const response = await fetch('/api/evaluations/list?limit=100');
-      const data = await response.json();
+      const { data } = await fetchJSON('/api/evaluations/list?limit=100', {}, { maxRetries: 2 });
       
       if (data.success && data.data.length > 0) {
         const dbEvaluations = data.data.map(evaluation => {
@@ -208,7 +212,7 @@ export default function Home() {
         }
       } else if (data.success && data.data && data.data.length === 0) {
         // No evaluations in database - keep localStorage if exists
-        console.log('No evaluations found in database');
+        logger.debug('No evaluations found in database', 'Load Evaluations');
       }
     } catch (err) {
       logError(err, 'Load Evaluations from Database');
@@ -251,7 +255,7 @@ export default function Home() {
           setJdHistory([...dbJDs, ...getJDs()]);
         }
       })
-      .catch(err => console.log('Database JD load failed, using localStorage:', err));
+      .catch(err => logger.warn('Database JD load failed, using localStorage', 'Load Job Descriptions', err));
     
     // Reload evaluations when page becomes visible (user navigated back)
     const handleVisibilityChange = () => {
@@ -275,7 +279,7 @@ export default function Home() {
         // Sync evaluations
         const evalSyncResult = await syncEvaluationsToSupabase();
         if (evalSyncResult.success && evalSyncResult.synced > 0) {
-          console.log(`✅ Synced ${evalSyncResult.synced} evaluation(s) to Supabase`);
+          logger.info(`Synced ${evalSyncResult.synced} evaluation(s) to Supabase`, 'Auto-Sync');
           // Reload evaluations to get database IDs
           loadEvaluations(false);
         }
@@ -283,16 +287,17 @@ export default function Home() {
         // Sync job descriptions
         const jdSyncResult = await syncJobDescriptionsToSupabase();
         if (jdSyncResult.success && jdSyncResult.synced > 0) {
-          console.log(`✅ Synced ${jdSyncResult.synced} job description(s) to Supabase`);
+          logger.info(`Synced ${jdSyncResult.synced} job description(s) to Supabase`, 'Auto-Sync');
         }
       } catch (error) {
-        console.error('Auto-sync error:', error);
+        logger.error('Auto-sync error', 'Auto-Sync', error);
         // Don't show error to user - sync is background operation
       }
     }, 3000); // Wait 3 seconds after page load
 
     return () => clearTimeout(syncTimer);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // loadEvaluations is stable, no need to include
 
   useEffect(() => {
     let isMounted = true;
@@ -313,7 +318,7 @@ export default function Home() {
         
         if (dbSettings && Object.keys(dbSettings).length > 0) {
           setSettings(dbSettings);
-          console.log('[index] Settings loaded from database:', {
+          logger.debug('Settings loaded from database', 'Load Settings', {
             hasWhatsApp: !!dbSettings.whatsappSendingEnabled,
             hasEmail: !!dbSettings.emailSendingEnabled,
             hasApiKey: !!dbSettings.whatsappApiKey,
@@ -324,7 +329,7 @@ export default function Home() {
           const localSettings = getSettings();
           if (isMounted) {
             setSettings(localSettings);
-            console.log('[index] Using cached settings (database empty)');
+            logger.debug('Using cached settings (database empty)', 'Load Settings');
           }
         }
       } catch (err) {
@@ -333,7 +338,7 @@ export default function Home() {
           // Last resort: use cached/localStorage settings
           const localSettings = getSettings();
           setSettings(localSettings);
-          console.log('[index] Using cached settings due to error');
+          logger.warn('Using cached settings due to error', 'Load Settings');
         }
       }
     };
@@ -485,30 +490,32 @@ export default function Home() {
     
     // Save to database
     try {
-      const response = await fetch('/api/job-descriptions/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: finalTitle,
-          description: jobDescription,
-        }),
-      });
+      // Sanitize before saving
+      const sanitizedTitle = sanitizeText(finalTitle);
+      const sanitizedDescription = sanitizeText(jobDescription);
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data?.id) {
-          // Update local history with database ID
-          const updatedHistory = jdHistory.map(jd => 
-            jd.title === finalTitle ? { ...jd, id: data.data.id } : jd
-          );
-          if (!updatedHistory.find(jd => jd.title === finalTitle)) {
-            updatedHistory.unshift({ title: finalTitle, content: jobDescription, id: data.data.id });
-          }
-          setJdHistory(updatedHistory);
+      const { data } = await fetchJSON('/api/job-descriptions/save', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: sanitizedTitle,
+          description: sanitizedDescription,
+        }),
+      }, { maxRetries: 2 });
+      
+      if (data.success && data.data?.id) {
+        // Update local history with database ID
+        const updatedHistory = jdHistory.map(jd => 
+          jd.title === finalTitle ? { ...jd, id: data.data.id } : jd
+        );
+        if (!updatedHistory.find(jd => jd.title === finalTitle)) {
+          updatedHistory.unshift({ title: finalTitle, content: jobDescription, id: data.data.id });
         }
+        setJdHistory(updatedHistory);
+        toast.success(`Job description "${sanitizedTitle}" saved successfully`);
       }
     } catch (err) {
-      console.log('Database save failed, using localStorage:', err);
+      logError(err, 'Save Job Description');
+      toast.warning('Saved to local storage. Database save may have failed.');
     }
     
     // Reload from both sources
@@ -542,7 +549,7 @@ export default function Home() {
     if (typeof window !== "undefined") {
       const message = existingJD ? `Updated "${finalTitle}"` : `Saved "${finalTitle}"`;
       // You could add a toast notification here
-      console.log(message);
+      logger.info(message, 'Save JD');
     }
   };
 
@@ -574,10 +581,10 @@ export default function Home() {
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error('Database delete failed:', errorData);
+          logger.error('Database delete failed', 'Delete JD', errorData);
         }
       } catch (err) {
-        console.error('Database delete failed:', err);
+        logger.error('Database delete failed', 'Delete JD', err);
       }
     }
     
@@ -613,7 +620,7 @@ export default function Home() {
         setJdHistory(localJDs);
       }
     } catch (err) {
-      console.error('Failed to reload JDs from database:', err);
+        logger.error('Failed to reload JDs from database', 'Delete JD', err);
       // Fallback to localStorage only
       setJdHistory(localJDs);
     }
@@ -621,11 +628,11 @@ export default function Home() {
 
   const handleUpdateJD = async (jd, newTitle) => {
     if (!newTitle || !newTitle.trim()) {
-      console.error("Empty title provided");
+      logger.error("Empty title provided", 'Update JD');
       return;
     }
     
-    console.log("Updating JD:", { oldTitle: jd.title, newTitle, jdId: jd.id });
+    logger.debug("Updating JD", 'Update JD', { oldTitle: jd.title, newTitle, jdId: jd.id });
     
     // Update localStorage first
     const localJDs = getJDs();
@@ -673,7 +680,7 @@ export default function Home() {
         
         if (response.ok) {
           const data = await response.json();
-          console.log("Database update response:", data);
+          logger.debug("Database update response", 'Update JD', data);
           
           // Reload from database to get updated data
           const dbResponse = await fetch('/api/job-descriptions/list');
@@ -705,7 +712,7 @@ export default function Home() {
           }
         } else {
           const errorData = await response.json().catch(() => ({}));
-          console.error("Database update failed:", response.status, errorData);
+          logger.error("Database update failed", 'Update JD', { status: response.status, error: errorData });
         }
       } catch (err) {
         console.error('Database update error:', err);
@@ -728,7 +735,7 @@ export default function Home() {
     });
     
     setJdHistory(updatedJDs);
-    console.log("JD history updated from localStorage:", updatedJDs);
+    logger.debug("JD history updated from localStorage", 'Update JD', updatedJDs);
   };
 
   const handleClearJDs = () => {
@@ -758,7 +765,7 @@ export default function Home() {
         const { getSettingsFromDatabase } = await import('@/utils/settingsStorage');
         currentSettings = await getSettingsFromDatabase();
       } catch (err) {
-        console.log('Failed to load settings from database, using cached:', err);
+        logger.warn('Failed to load settings from database, using cached', 'Load Settings', err);
         currentSettings = getSettings();
       }
     }
@@ -890,7 +897,7 @@ export default function Home() {
         const { getSettingsFromDatabase } = await import('@/utils/settingsStorage');
         currentSettings = await getSettingsFromDatabase();
       } catch (err) {
-        console.log('Failed to load settings from database, using cached:', err);
+        logger.warn('Failed to load settings from database, using cached', 'Load Settings', err);
         currentSettings = getSettings();
       }
     }
@@ -1124,6 +1131,43 @@ export default function Home() {
   const handleEvaluate = async ({ resumeFile }) => {
     const fileName = resumeFile.name || `resume_${Date.now()}`;
     
+    // Validate inputs before processing
+    try {
+      const fileValidation = validateResumeFile(resumeFile);
+      if (!fileValidation.valid) {
+        setEvaluatingFiles(prev => {
+          const newMap = new Map(prev);
+          newMap.set(fileName, { status: 'error', progress: fileValidation.error });
+          return newMap;
+        });
+        setGlobalError(fileValidation.error);
+        toast.error(fileValidation.error);
+        return;
+      }
+
+      const jdValidation = validateJD(jobDescription);
+      if (!jdValidation.valid) {
+        setEvaluatingFiles(prev => {
+          const newMap = new Map(prev);
+          newMap.set(fileName, { status: 'error', progress: jdValidation.error });
+          return newMap;
+        });
+        setGlobalError(jdValidation.error);
+        toast.error(jdValidation.error);
+        return;
+      }
+    } catch (validationError) {
+      const errorMsg = formatErrorMessage(validationError, 'Validation failed');
+      setEvaluatingFiles(prev => {
+        const newMap = new Map(prev);
+        newMap.set(fileName, { status: 'error', progress: errorMsg });
+        return newMap;
+      });
+      setGlobalError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+    
     // Mark this file as evaluating (no full-screen loader)
     setEvaluatingFiles(prev => {
       const newMap = new Map(prev);
@@ -1134,18 +1178,26 @@ export default function Home() {
     setGlobalError("");
 
     try {
+      // Sanitize job description before sending
+      const sanitizedJD = sanitizeText(jobDescription);
+      
       const formData = new FormData();
-      formData.append("jobDescription", jobDescription);
+      formData.append("jobDescription", sanitizedJD);
       formData.append("resume", resumeFile);
 
-      const response = await fetch("/api/evaluate", {
+      const response = await fetchWithRetry("/api/evaluate", {
         method: "POST",
         body: formData,
+      }, {
+        maxRetries: 2,
+        retryDelay: 2000,
+        timeout: 120000, // 2 minutes for evaluation
       });
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || "Unable to evaluate resume.");
+        const errorMessage = error.error || error.message || "Unable to evaluate resume.";
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -1153,20 +1205,21 @@ export default function Home() {
       const emailDraft = data?.result?.emailDraft || null;
       const whatsappDraft = data?.result?.whatsappDraft || null;
 
-      const candidateName = summary.candidateName || "Candidate";
-      const roleApplied = summary.roleApplied || jobTitle || "Role";
-      
-      // Smart duplicate detection (from database with multiple matching strategies)
-      try {
-        const duplicateParams = new URLSearchParams({
-          candidateName: candidateName,
-        });
-        if (summary.candidateEmail) duplicateParams.append('candidateEmail', summary.candidateEmail);
-        if (summary.candidateWhatsApp) duplicateParams.append('candidateWhatsApp', summary.candidateWhatsApp);
-        if (summary.linkedInUrl) duplicateParams.append('linkedInUrl', summary.linkedInUrl);
+        // Sanitize candidate name and role
+        // Sanitize candidate name and role
+        const candidateName = sanitizeText(summary.candidateName || "Candidate");
+        const roleApplied = sanitizeText(summary.roleApplied || jobTitle || "Role");
         
-        const duplicateCheck = await fetch(`/api/evaluations/check-duplicate?${duplicateParams.toString()}`);
-        const duplicateData = await duplicateCheck.json();
+        // Smart duplicate detection (from database with multiple matching strategies)
+        try {
+          const duplicateParams = new URLSearchParams({
+            candidateName: candidateName,
+          });
+          if (summary.candidateEmail) duplicateParams.append('candidateEmail', sanitizeEmail(summary.candidateEmail));
+          if (summary.candidateWhatsApp) duplicateParams.append('candidateWhatsApp', sanitizePhone(summary.candidateWhatsApp));
+          if (summary.linkedInUrl) duplicateParams.append('linkedInUrl', sanitizeURL(summary.linkedInUrl));
+          
+          const { data: duplicateData } = await fetchJSON(`/api/evaluations/check-duplicate?${duplicateParams.toString()}`, {}, { maxRetries: 1 });
         
         if (duplicateData.success && duplicateData.isDuplicate) {
           const prevDate = new Date(duplicateData.data.createdAt).toLocaleDateString();
@@ -1248,23 +1301,28 @@ export default function Home() {
         "Not Suitable": "Rejection"
       };
 
+      // Sanitize all candidate data
+      const sanitizedEmail = summary.candidateEmail ? sanitizeEmail(summary.candidateEmail) : "";
+      const sanitizedPhone = summary.candidateWhatsApp ? sanitizePhone(summary.candidateWhatsApp) : "";
+      const sanitizedLinkedIn = summary.linkedInUrl ? sanitizeURL(summary.linkedInUrl) : "";
+
       const evaluation = {
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         candidateName,
-        candidateEmail: summary.candidateEmail || "",
-        candidateWhatsApp: summary.candidateWhatsApp || "",
-        linkedInUrl: summary.linkedInUrl || "",
-        roleApplied,
+        candidateEmail: sanitizedEmail,
+        candidateWhatsApp: sanitizedPhone,
+        linkedInUrl: sanitizedLinkedIn,
+        roleApplied: sanitizeText(roleApplied),
         experience: summary.experienceCtcNoticeLocation || "",
         workExperience: summary.workExperience || [],
-        candidateLocation: summary.candidateLocation || "",
-        companyLocation: summary.companyLocation || "",
-        strengths: arrayFrom(summary.keyStrengths),
-        gaps: arrayFrom(summary.gaps),
-        educationGaps: arrayFrom(summary.educationGaps),
-        experienceGaps: arrayFrom(summary.experienceGaps),
+        candidateLocation: sanitizeText(summary.candidateLocation || ""),
+        companyLocation: sanitizeText(summary.companyLocation || ""),
+        strengths: arrayFrom(summary.keyStrengths).map(s => sanitizeText(s)),
+        gaps: arrayFrom(summary.gaps).map(g => sanitizeText(g)),
+        educationGaps: arrayFrom(summary.educationGaps).map(g => sanitizeText(g)),
+        experienceGaps: arrayFrom(summary.experienceGaps).map(g => sanitizeText(g)),
         verdict: summary.verdict || "Not Suitable",
-        betterSuitedFocus: summary.betterSuitedFocus || "",
+        betterSuitedFocus: sanitizeText(summary.betterSuitedFocus || ""),
         matchScore: summary.matchScore || 0,
         scoreBreakdown,
         // Derived fields
@@ -1279,7 +1337,7 @@ export default function Home() {
         previousCompanyTwo: derivedFields.previousCompanyTwo,
         previousDesignationTwo: derivedFields.previousDesignationTwo,
         tenureMonthsTwo: derivedFields.tenureMonthsTwo,
-        freeTextNotesShort: summary.betterSuitedFocus || (summary.gaps && summary.gaps.length > 0 ? summary.gaps.slice(0, 2).join("; ") : ""),
+        freeTextNotesShort: sanitizeText(summary.betterSuitedFocus || (summary.gaps && summary.gaps.length > 0 ? summary.gaps.slice(0, 2).join("; ") : "")),
         emailType: emailTypeMap[summary.verdict] || "Rejection",
         emailDraft,
         whatsappDraft,
@@ -1297,18 +1355,16 @@ export default function Home() {
         
         if (jobDescription && jobDescription.trim().length > 0) {
           try {
-            const jdResponse = await fetch('/api/job-descriptions/find-or-create', {
+            const { data: jdData } = await fetchJSON('/api/job-descriptions/find-or-create', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                title: jdTitle,
-                description: jobDescription,
-                jdLink: jdLink,
+                title: sanitizeText(jdTitle),
+                description: sanitizedJD,
+                jdLink: sanitizeURL(jdLink),
               }),
-            });
+            }, { maxRetries: 2 });
             
-            if (jdResponse.ok) {
-              const jdData = await jdResponse.json();
+            if (jdData.success) {
               if (jdData.success && jdData.data?.id) {
                 jobDescriptionId = jdData.data.id;
                 console.log('[index] Job description found/created:', {
@@ -1319,23 +1375,23 @@ export default function Home() {
               }
             }
           } catch (jdError) {
-            console.error('[index] Error finding/creating JD:', jdError);
+            logger.error('Error finding/creating JD', 'Evaluate Resume', jdError);
             // Continue without JD ID - evaluation will still be saved
           }
         }
         
-        const saveResponse = await fetch('/api/evaluations/save', {
+        // Sanitize data before saving to database
+        const { data: saveData, response: saveResponse } = await fetchJSON('/api/evaluations/save', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            candidateName,
-            candidateEmail: summary.candidateEmail || '',
-            candidateWhatsApp: summary.candidateWhatsApp || '',
-            candidateLocation: summary.candidateLocation || '',
-            linkedInUrl: summary.linkedInUrl || '',
-            roleApplied,
-            companyLocation: summary.companyLocation || '',
-            experienceCtcNoticeLocation: summary.experienceCtcNoticeLocation || '',
+            candidateName: sanitizeText(candidateName),
+            candidateEmail: sanitizedEmail,
+            candidateWhatsApp: sanitizedPhone,
+            candidateLocation: sanitizeText(summary.candidateLocation || ''),
+            linkedInUrl: sanitizedLinkedIn,
+            roleApplied: sanitizeText(roleApplied),
+            companyLocation: sanitizeText(summary.companyLocation || ''),
+            experienceCtcNoticeLocation: sanitizeText(summary.experienceCtcNoticeLocation || ''),
             workExperience: summary.workExperience || [],
             verdict: summary.verdict || 'Not Suitable',
             matchScore: summary.matchScore || 0,
@@ -1346,32 +1402,24 @@ export default function Home() {
               locationMatch: summary.scoreBreakdown?.locationMatch || 0,
               stabilityScore: summary.scoreBreakdown?.stabilityScore || derivedFields.stabilityScore,
             },
-            keyStrengths: arrayFrom(summary.keyStrengths),
-            gaps: arrayFrom(summary.gaps),
-            educationGaps: arrayFrom(summary.educationGaps),
-            experienceGaps: arrayFrom(summary.experienceGaps),
-            betterSuitedFocus: summary.betterSuitedFocus || '',
+            keyStrengths: arrayFrom(summary.keyStrengths).map(s => sanitizeText(s)),
+            gaps: arrayFrom(summary.gaps).map(g => sanitizeText(g)),
+            educationGaps: arrayFrom(summary.educationGaps).map(g => sanitizeText(g)),
+            experienceGaps: arrayFrom(summary.experienceGaps).map(g => sanitizeText(g)),
+            betterSuitedFocus: sanitizeText(summary.betterSuitedFocus || ''),
             emailDraft,
             whatsappDraft,
             jobDescriptionId, // Link to job description
             jobDescriptionTitle: jdTitle, // Save JD title for reference
             jobDescriptionLink: jdLink, // Save JD link for reference
-            jobDescriptionContent: jobDescription, // Save full JD content
+            jobDescriptionContent: sanitizedJD, // Save full JD content (sanitized)
             scanTimestamp: new Date().toISOString(), // Save when scan was performed
             // Include resume file data to save in same transaction
             resumeFile: data?.metadata?.resumeFile || null,
           }),
-        });
+        }, { maxRetries: 2 });
         
-        console.log('[index] Sending evaluation to save API:', {
-          hasResumeFile: !!data?.metadata?.resumeFile,
-          resumeFileName: data?.metadata?.resumeFile?.fileName,
-          resumeFileSize: data?.metadata?.resumeFile?.fileSize,
-          resumeFileContentLength: data?.metadata?.resumeFile?.fileContent?.length,
-        });
-        
-        if (saveResponse.ok) {
-          const saveData = await saveResponse.json();
+        if (saveData.success) {
           const dbEvaluationId = saveData.data?.evaluationId;
           if (dbEvaluationId) {
             evaluation.id = dbEvaluationId;
@@ -1380,37 +1428,32 @@ export default function Home() {
             // Resume is now saved directly in the evaluations/save API
             // But if it wasn't saved there (e.g., API doesn't support it yet), try separate save
             if (!saveData.data?.resumeSaved && data?.metadata?.resumeFile) {
-              console.log('[index] Resume not saved in evaluation API, trying separate save...');
               try {
                 const resumeData = data.metadata.resumeFile;
-                const resumeSaveResponse = await fetch('/api/resumes/save', {
+                const { data: resumeSaveResult } = await fetchJSON('/api/resumes/save', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     evaluationId: dbEvaluationId,
-                    fileName: resumeData.fileName,
+                    fileName: sanitizeFileName(resumeData.fileName),
                     fileType: resumeData.fileType,
                     fileSize: resumeData.fileSize,
                     fileContent: resumeData.fileContent, // Already base64
                   }),
-                });
+                }, { maxRetries: 1 });
                 
-                const resumeSaveResult = await resumeSaveResponse.json();
-                if (resumeSaveResponse.ok && resumeSaveResult.success) {
-                  console.log('[index] Resume saved successfully via separate API');
+                if (resumeSaveResult.success) {
+                  // Resume saved successfully
                 } else {
-                  console.error('[index] Resume save failed:', resumeSaveResult.error || resumeSaveResult.message);
+                  logError(resumeSaveResult.error, 'Save Resume');
                 }
               } catch (resumeError) {
-                console.error('[index] Resume save error:', resumeError);
+                logError(resumeError, 'Save Resume');
               }
-            } else if (saveData.data?.resumeSaved) {
-              console.log('[index] Resume saved successfully with evaluation');
             }
           }
         }
       } catch (dbError) {
-        console.log('Database save failed, using localStorage:', dbError);
+        logger.warn('Database save failed, using localStorage', 'Evaluate Resume', dbError);
       }
 
       // Save candidate to history (localStorage fallback)
@@ -1433,7 +1476,10 @@ export default function Home() {
 
       // If database save failed, mark for sync later
       if (!evaluation.databaseId) {
-        console.log('⚠️ Evaluation saved to localStorage but not to database. Will sync on next page load.');
+        logger.warn('Evaluation saved to localStorage but not to database. Will sync on next page load.', 'Evaluate Resume');
+        toast.warning('Evaluation saved locally. Will sync to database shortly.');
+      } else {
+        toast.success(`Successfully evaluated ${candidateName}`);
       }
       
       // Scroll kanban into view so user sees the new result
@@ -1455,13 +1501,19 @@ export default function Home() {
       return evaluation;
     } catch (error) {
       // Mark evaluation as error
+      const errorMessage = formatErrorMessage(error, "Unable to evaluate resume.");
+      
       setEvaluatingFiles(prev => {
         const newMap = new Map(prev);
-        newMap.set(fileName, { status: 'error', error: error.message });
+        newMap.set(fileName, { status: 'error', error: errorMessage });
         return newMap;
       });
       
-      setGlobalError(error.message || "Unable to evaluate resume.");
+      setGlobalError(errorMessage);
+      toast.error(errorMessage);
+      
+      // Log error for debugging
+      logError(error, 'Evaluate Resume');
       throw error;
     }
   };
@@ -1551,6 +1603,16 @@ export default function Home() {
                     Reset Scan
                   </button>
                 )}
+                <Link
+                  href="/candidate-database"
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-blue-200 hover:border-blue-300"
+                  title="View all evaluated candidates"
+                >
+                  <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  Candidate Database
+                </Link>
                 <Link
                   href="/settings"
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"

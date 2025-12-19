@@ -106,3 +106,4 @@ ALTER TABLE `whatsapp_logs` ADD INDEX `idx_status_date` (`status`, `created_at`)
 - **Tables Created**: 13/13
 
 
+

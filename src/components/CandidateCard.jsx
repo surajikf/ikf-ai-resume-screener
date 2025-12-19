@@ -43,7 +43,9 @@ const getScoreBg = (score) => {
   return "bg-red-50 border-red-200";
 };
 
-const CandidateCard = ({ candidate, onSelect, onViewResume, isLoading }) => {
+import { memo } from 'react';
+
+const CandidateCard = memo(({ candidate, onSelect, onViewResume, isLoading }) => {
   const styles = verdictStyles[candidate.verdict] || verdictStyles["Not Suitable"];
   const matchScore = candidate.matchScore || 0;
   const scoreColor = getScoreColor(matchScore);
@@ -229,7 +231,9 @@ const CandidateCard = ({ candidate, onSelect, onViewResume, isLoading }) => {
       </div>
     </article>
   );
-};
+});
+
+CandidateCard.displayName = 'CandidateCard';
 
 export default CandidateCard;
 

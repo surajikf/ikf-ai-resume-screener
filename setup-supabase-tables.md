@@ -114,3 +114,4 @@ After tables are created:
 4. ✅ Deploy to Vercel with environment variables
 
 
+
