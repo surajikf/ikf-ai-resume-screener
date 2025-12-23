@@ -185,7 +185,7 @@ export default function CandidateProfilePage() {
         <div className="flex flex-col items-center justify-center min-h-screen p-4">
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 max-w-md w-full">
             <h1 className="text-xl font-semibold text-slate-900 mb-2">Candidate Not Found</h1>
-            <p className="text-slate-700 mb-4">The candidate you're looking for doesn't exist.</p>
+            <p className="text-slate-700 mb-4">The candidate you&apos;re looking for doesn&apos;t exist.</p>
             <Link
               href="/"
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"

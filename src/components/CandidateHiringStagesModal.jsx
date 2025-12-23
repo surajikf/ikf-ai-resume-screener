@@ -260,7 +260,7 @@ export default function CandidateHiringStagesModal({
                   Moving Backward in Pipeline
                 </p>
                 <p className="text-xs text-yellow-700 mt-1">
-                  You're moving this candidate to an earlier stage. This is allowed but please add a comment explaining why.
+                  You&apos;re moving this candidate to an earlier stage. This is allowed but please add a comment explaining why.
                 </p>
               </div>
             </div>
