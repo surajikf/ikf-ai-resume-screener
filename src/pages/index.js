@@ -157,6 +157,7 @@ export default function Home() {
           return {
             id: evaluation.id,
             databaseId: evaluation.id, // Store database ID
+            candidateId: evaluation.candidateId, // Include candidate ID for profile navigation
             candidateName: evaluation.candidateName,
             candidateEmail: evaluation.candidateEmail,
             candidateWhatsApp: evaluation.candidateWhatsApp,

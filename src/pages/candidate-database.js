@@ -2,7 +2,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import CandidateList from "@/components/CandidateList";
-import CandidateDetailCard from "@/components/CandidateDetailCard";
+// CandidateDetailCard import removed - using profile page instead
 import ResumeViewer from "@/components/ResumeViewer";
 import EmptyState from "@/components/EmptyState";
 import { fetchJSON } from "@/utils/fetchWithRetry";
@@ -31,7 +31,7 @@ export default function CandidateDatabase() {
   const [verdictFilter, setVerdictFilter] = useState("all"); // Default: show all candidates
   const [sortBy, setSortBy] = useState("latest_evaluation");
   const [sortOrder, setSortOrder] = useState("DESC");
-  const [selectedCandidate, setSelectedCandidate] = useState(null);
+  // selectedCandidate removed - using profile page navigation instead
   const [selectedResume, setSelectedResume] = useState(null);
   const [pagination, setPagination] = useState({
     total: 0,
@@ -184,13 +184,7 @@ export default function CandidateDatabase() {
     setSelectedResume(null);
   };
 
-  const handleSelectCandidate = (candidate) => {
-    setSelectedCandidate(candidate);
-  };
-
-  const handleCloseDetail = () => {
-    setSelectedCandidate(null);
-  };
+  // handleSelectCandidate and handleCloseDetail removed - navigation handled in CandidateList component
 
   const handleSortChange = (newSortBy, newSortOrder) => {
     setSortBy(newSortBy);
@@ -560,7 +554,7 @@ export default function CandidateDatabase() {
             <>
               <CandidateList
                 candidates={candidates}
-                onSelectCandidate={handleSelectCandidate}
+                onSelectCandidate={null} // Not used anymore - navigation handled in component
                 onViewResume={handleViewResumeFromList}
                 loading={loading}
                 sortBy={sortBy}
@@ -598,24 +592,8 @@ export default function CandidateDatabase() {
           )}
         </main>
 
-        {/* Candidate Detail Modal */}
-        {selectedCandidate && (
-          <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4 py-4">
-              <div
-                className="fixed inset-0 bg-black bg-opacity-50"
-                onClick={handleCloseDetail}
-              ></div>
-              <div className="relative bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
-                <CandidateDetailCard
-                  candidate={selectedCandidate}
-                  onClose={handleCloseDetail}
-                  onViewResume={handleViewResume}
-                />
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Candidate Detail Modal - REMOVED: Now using profile page instead */}
+        {/* Modal removed - all clicks navigate to /candidate/[id] profile page */}
 
         {/* Resume Viewer */}
         {selectedResume && (

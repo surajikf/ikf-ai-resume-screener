@@ -70,6 +70,11 @@ const EvaluationHistoryTimeline = ({ evaluations, onViewResume }) => {
     }));
   };
 
+  // Helper to get unique evaluation ID
+  const getEvaluationId = (evaluation, index) => {
+    return evaluation.id || evaluation.evaluationId || `eval-${index}`;
+  };
+
   if (!evaluations || evaluations.length === 0) {
     return (
       <div className="bg-slate-50 rounded-lg p-6 text-center text-slate-500">
@@ -89,10 +94,11 @@ const EvaluationHistoryTimeline = ({ evaluations, onViewResume }) => {
           const VerdictIcon = styles.icon;
           const scoreColor = getScoreColor(evaluation.matchScore);
           const dateInfo = formatDate(evaluation.createdAt);
-          const isExpanded = expandedEvaluations[evaluation.evaluationId];
+          const evaluationId = getEvaluationId(evaluation, index);
+          const isExpanded = expandedEvaluations[evaluationId];
 
           return (
-            <div key={evaluation.evaluationId} className="relative pl-12">
+            <div key={evaluationId} className="relative pl-12">
               {/* Timeline dot */}
               <div
                 className={`absolute left-3 top-2 w-4 h-4 rounded-full border-2 border-white ${styles.border} ${styles.badge} flex items-center justify-center z-10`}
@@ -164,7 +170,7 @@ const EvaluationHistoryTimeline = ({ evaluations, onViewResume }) => {
 
                 {/* Expandable Details */}
                 <button
-                  onClick={() => toggleEvaluation(evaluation.evaluationId)}
+                  onClick={() => toggleEvaluation(evaluationId)}
                   className="w-full flex items-center justify-between text-sm text-slate-600 hover:text-slate-900 mb-2"
                 >
                   <span>{isExpanded ? "Hide" : "Show"} Details</span>
@@ -301,4 +307,5 @@ const EvaluationHistoryTimeline = ({ evaluations, onViewResume }) => {
 };
 
 export default EvaluationHistoryTimeline;
+
 

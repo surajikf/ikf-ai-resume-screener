@@ -44,12 +44,83 @@ const getScoreBg = (score) => {
 };
 
 import { memo } from 'react';
+import { useRouter } from 'next/router';
 
 const CandidateCard = memo(({ candidate, onSelect, onViewResume, isLoading }) => {
+  // Note: onSelect is kept for backward compatibility but should never be called
+  // All clicks should navigate to profile page instead
+  const router = useRouter();
   const styles = verdictStyles[candidate.verdict] || verdictStyles["Not Suitable"];
   const matchScore = candidate.matchScore || 0;
   const scoreColor = getScoreColor(matchScore);
   const scoreBg = getScoreBg(matchScore);
+
+  const handleViewProfile = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // Store the current page in sessionStorage so we can navigate back
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('candidateProfileReturnUrl', '/');
+    }
+
+    // If candidateId is available, navigate to profile page immediately
+    if (candidate.candidateId) {
+      router.push(`/candidate/${candidate.candidateId}`).catch(err => {
+        console.error('Navigation error:', err);
+      });
+      return;
+    }
+    
+    console.log('Candidate ID not found, searching by email/name:', {
+      candidateId: candidate.candidateId,
+      email: candidate.candidateEmail,
+      name: candidate.candidateName
+    });
+
+    // Try to find candidate by email first, then name
+    if (candidate.candidateEmail) {
+      try {
+        const response = await fetch(`/api/candidates/search?email=${encodeURIComponent(candidate.candidateEmail)}`);
+        const data = await response.json();
+        
+        if (data.success && data.data && data.data.length > 0) {
+          // Store return URL before navigating
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('candidateProfileReturnUrl', '/');
+          }
+          router.push(`/candidate/${data.data[0].id}`);
+          return;
+        }
+      } catch (err) {
+        console.error('Error searching for candidate by email:', err);
+      }
+    }
+    
+    if (candidate.candidateName) {
+      try {
+        const response = await fetch(`/api/candidates/search?name=${encodeURIComponent(candidate.candidateName)}`);
+        const data = await response.json();
+        
+        if (data.success && data.data && data.data.length > 0) {
+          // Store return URL before navigating
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('candidateProfileReturnUrl', '/');
+          }
+          router.push(`/candidate/${data.data[0].id}`);
+          return;
+        }
+      } catch (err) {
+        console.error('Error searching for candidate by name:', err);
+      }
+    }
+
+    // If we can't find candidate, show error instead of opening modal
+    console.warn('Could not find candidate ID for navigation:', candidate.candidateName);
+    alert('Unable to load candidate profile. Please try again later.');
+  };
 
   // Extract derived fields
   const currentCompany = candidate.currentCompany || candidate.latestCompanyOne || "";
@@ -76,13 +147,24 @@ const CandidateCard = memo(({ candidate, onSelect, onViewResume, isLoading }) =>
   
   return (
     <article
-      className={`flex flex-col gap-2 rounded-lg border ${styles.border} bg-white p-3 hover:border-blue-300`}
+      className={`flex flex-col gap-2 rounded-lg border ${styles.border} bg-white p-3 hover:border-blue-300 cursor-pointer`}
+      onClick={handleViewProfile}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleViewProfile(e);
+        }
+      }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1 flex-1 min-w-0">
           <div className="flex items-center gap-2 text-slate-900">
             <FaUser className="text-blue-500 flex-shrink-0" aria-hidden />
-            <h4 className="text-base font-semibold truncate">
+            <h4 
+              className="text-base font-semibold truncate hover:text-blue-600 transition-colors"
+            >
               {candidate.candidateName || "Unnamed Candidate"}
             </h4>
             {candidate.linkedInUrl && (
@@ -90,7 +172,7 @@ const CandidateCard = memo(({ candidate, onSelect, onViewResume, isLoading }) =>
                 href={candidate.linkedInUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-shrink-0 text-blue-600 hover:text-blue-700"
+                className="flex-shrink-0 text-blue-600 hover:text-blue-700 z-10"
                 onClick={(e) => e.stopPropagation()}
                 title="LinkedIn Profile"
               >
@@ -211,16 +293,22 @@ const CandidateCard = memo(({ candidate, onSelect, onViewResume, isLoading }) =>
       <div className="flex gap-2 mt-1">
         <button
           type="button"
-          onClick={() => onSelect(candidate)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleViewProfile(e);
+          }}
           className="flex-1 flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
         >
           <FaEnvelopeOpenText />
-          View &amp; Send Email
+          View Profile
         </button>
         {(candidate.databaseId || candidate.id) && onViewResume && (
           <button
             type="button"
-            onClick={() => onViewResume(candidate)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewResume(candidate);
+            }}
             className="flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
             title="View Resume"
           >

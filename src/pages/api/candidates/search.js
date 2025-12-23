@@ -6,16 +6,29 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { q, limit = 20 } = req.query;
+    const { q, email, name, limit = 20 } = req.query;
 
-    if (!q || q.trim().length < 2) {
+    // Support both q (general search) and specific email/name parameters
+    let searchTerm = null;
+    let params = [];
+    let whereClause = '';
+
+    if (email) {
+      whereClause = 'c.candidate_email = ?';
+      params.push(email);
+    } else if (name) {
+      whereClause = 'c.candidate_name = ?';
+      params.push(name);
+    } else if (q && q.trim().length >= 2) {
+      searchTerm = `%${q.trim()}%`;
+      whereClause = 'c.candidate_name LIKE ? OR c.candidate_email LIKE ? OR c.candidate_whatsapp LIKE ?';
+      params = [searchTerm, searchTerm, searchTerm];
+    } else {
       return res.status(400).json({
         success: false,
-        error: 'Search query must be at least 2 characters',
+        error: 'Search query (q), email, or name parameter is required',
       });
     }
-
-    const searchTerm = `%${q.trim()}%`;
     
     const result = await query(
       `SELECT DISTINCT
@@ -29,14 +42,11 @@ export default async function handler(req, res) {
         AVG(e.match_score) as avg_score
       FROM candidates c
       LEFT JOIN evaluations e ON c.id = e.candidate_id
-      WHERE 
-        c.candidate_name LIKE ? OR
-        c.candidate_email LIKE ? OR
-        c.candidate_whatsapp LIKE ?
+      WHERE ${whereClause}
       GROUP BY c.id
       ORDER BY last_evaluated DESC
       LIMIT ?`,
-      [searchTerm, searchTerm, searchTerm, parseInt(limit)]
+      [...params, parseInt(limit)]
     );
 
     if (!result.success) {

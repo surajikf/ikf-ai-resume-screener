@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FaTimes, FaDownload, FaFilePdf, FaFileWord, FaFileAlt } from "react-icons/fa";
 
-const ResumeViewer = ({ evaluationId, candidateName, onClose }) => {
+const ResumeViewer = ({ evaluationId, candidateId, candidateName, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [resumeData, setResumeData] = useState(null);
   const [pdfError, setPdfError] = useState(false);
+  const blobUrlRef = useRef(null); // Track blob URL for cleanup
 
   useEffect(() => {
     if (!evaluationId) {
@@ -14,9 +15,15 @@ const ResumeViewer = ({ evaluationId, candidateName, onClose }) => {
       return;
     }
 
+    // Reset state when evaluationId changes
+    setLoading(true);
+    setError("");
+    setPdfError(false);
+    setResumeData(null);
+
     const fetchResume = async () => {
       try {
-        console.log('[ResumeViewer] Fetching resume for evaluationId:', evaluationId);
+        console.log('[ResumeViewer] Fetching resume for evaluationId:', evaluationId, 'candidateId:', candidateId);
         
         // First, test if resume exists
         const testResponse = await fetch(`/api/resumes/test?evaluationId=${evaluationId}`);
@@ -28,8 +35,11 @@ const ResumeViewer = ({ evaluationId, candidateName, onClose }) => {
           }
         }
         
-        // Fetch resume metadata and URL
-        const response = await fetch(`/api/resumes/get?evaluationId=${evaluationId}`);
+        // Fetch resume metadata and URL - include candidateId for validation
+        const url = candidateId 
+          ? `/api/resumes/get?evaluationId=${evaluationId}&candidateId=${candidateId}`
+          : `/api/resumes/get?evaluationId=${evaluationId}`;
+        const response = await fetch(url);
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
@@ -66,6 +76,7 @@ const ResumeViewer = ({ evaluationId, candidateName, onClose }) => {
           // Binary stream response - create blob URL
           const blob = await response.blob();
           const url = URL.createObjectURL(blob);
+          blobUrlRef.current = url; // Store for cleanup
           
           // Get filename from Content-Disposition header
           const contentDisposition = response.headers.get('content-disposition');
@@ -103,13 +114,14 @@ const ResumeViewer = ({ evaluationId, candidateName, onClose }) => {
 
     fetchResume();
     
-    // Cleanup blob URL on unmount
+    // Cleanup blob URL on unmount or when evaluationId changes
     return () => {
-      if (resumeData?.fileUrl && resumeData.source === 'database_blob') {
-        URL.revokeObjectURL(resumeData.fileUrl);
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
       }
     };
-  }, [evaluationId, resumeData?.fileUrl, resumeData?.source]);
+  }, [evaluationId, candidateId]); // Depend on both evaluationId and candidateId
 
   const handleDownload = async () => {
     if (!resumeData || !resumeData.fileUrl) {
@@ -163,6 +175,7 @@ const ResumeViewer = ({ evaluationId, candidateName, onClose }) => {
       return (
         <div className="w-full h-full relative">
           <iframe
+            key={fileUrl} // Force remount when URL changes to prevent flickering
             src={fileUrl}
             type="application/pdf"
             className="w-full h-full border-0"

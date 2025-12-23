@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useRouter } from "next/router";
 import EmptyState from "@/components/EmptyState";
 import {
   FaUser,
@@ -55,6 +56,61 @@ const formatDate = (dateString) => {
 };
 
 const CandidateList = memo(({ candidates, onSelectCandidate, onViewResume, loading, sortBy, sortOrder, onSortChange }) => {
+  const router = useRouter();
+
+  const handleViewProfile = async (candidate, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // Store the current page in sessionStorage so we can navigate back
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('candidateProfileReturnUrl', '/candidate-database');
+    }
+
+    // If candidateId is available, navigate to profile page immediately
+    if (candidate.candidateId) {
+      router.push(`/candidate/${candidate.candidateId}`).catch(err => {
+        console.error('Navigation error:', err);
+      });
+      return;
+    }
+
+    // Try to find candidate by email first, then name
+    if (candidate.candidateEmail) {
+      try {
+        const response = await fetch(`/api/candidates/search?email=${encodeURIComponent(candidate.candidateEmail)}`);
+        const data = await response.json();
+        
+        if (data.success && data.data && data.data.length > 0) {
+          router.push(`/candidate/${data.data[0].id}`);
+          return;
+        }
+      } catch (err) {
+        console.error('Error searching for candidate by email:', err);
+      }
+    }
+    
+    if (candidate.candidateName) {
+      try {
+        const response = await fetch(`/api/candidates/search?name=${encodeURIComponent(candidate.candidateName)}`);
+        const data = await response.json();
+        
+        if (data.success && data.data && data.data.length > 0) {
+          router.push(`/candidate/${data.data[0].id}`);
+          return;
+        }
+      } catch (err) {
+        console.error('Error searching for candidate by name:', err);
+      }
+    }
+
+    // If we can't find candidate, show error instead of opening modal
+    console.warn('Could not find candidate ID for navigation:', candidate.candidateName);
+    alert('Unable to load candidate profile. Please try again later.');
+  };
+
   // Map column names to sortBy values
   const columnSortMap = {
     'id': 'candidate_id',
@@ -100,16 +156,9 @@ const CandidateList = memo(({ candidates, onSelectCandidate, onViewResume, loadi
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th 
-                  className={`px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider w-16 ${
-                    isSortable('id') ? 'cursor-pointer hover:bg-slate-100 select-none' : ''
-                  } ${sortBy === columnSortMap['id'] ? 'bg-blue-50' : ''}`}
-                  onClick={() => handleSort('id')}
-                  title={isSortable('id') ? 'Click to sort by ID' : ''}
+                  className="px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider w-16"
                 >
-                  <div className="flex items-center">
-                    ID
-                    {getSortIcon('id')}
-                  </div>
+                  #
                 </th>
                 <th 
                   className={`px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider w-[15%] ${
@@ -215,16 +264,9 @@ const CandidateList = memo(({ candidates, onSelectCandidate, onViewResume, loadi
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th 
-                className={`px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider w-16 ${
-                  isSortable('id') ? 'cursor-pointer hover:bg-slate-100 select-none' : ''
-                } ${sortBy === columnSortMap['id'] ? 'bg-blue-50' : ''}`}
-                onClick={() => handleSort('id')}
-                title={isSortable('id') ? 'Click to sort by ID' : ''}
+                className="px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider w-16"
               >
-                <div className="flex items-center">
-                  ID
-                  {getSortIcon('id')}
-                </div>
+                #
               </th>
               <th 
                 className={`px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider w-[15%] ${
@@ -304,7 +346,7 @@ const CandidateList = memo(({ candidates, onSelectCandidate, onViewResume, loadi
             </tr>
           </thead>
             <tbody className="bg-white divide-y divide-slate-200">
-              {candidates && Array.isArray(candidates) && candidates.filter(c => c != null).map((candidate) => {
+              {candidates && Array.isArray(candidates) && candidates.filter(c => c != null).map((candidate, index) => {
               const latestEvaluation = candidate.latestEvaluation;
               const styles = latestEvaluation?.verdict
                 ? verdictStyles[latestEvaluation.verdict] || verdictStyles["Not Suitable"]
@@ -316,12 +358,12 @@ const CandidateList = memo(({ candidates, onSelectCandidate, onViewResume, loadi
                 <tr
                   key={candidate.candidateId}
                   className="hover:bg-blue-50 transition-colors cursor-pointer"
-                  onClick={() => onSelectCandidate(candidate)}
+                  onClick={(e) => handleViewProfile(candidate, e)}
                 >
-                  {/* ID */}
+                  {/* Serial Number */}
                   <td className="px-3 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono font-semibold text-slate-600">
-                      #{candidate.candidateId}
+                    <span className="text-sm font-semibold text-slate-600">
+                      {index + 1}
                     </span>
                   </td>
 
@@ -468,10 +510,10 @@ const CandidateList = memo(({ candidates, onSelectCandidate, onViewResume, loadi
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSelectCandidate(candidate);
+                          handleViewProfile(candidate, e);
                         }}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
-                        title="View Details"
+                        title="View Profile"
                       >
                         <FaEye className="text-xs" />
                         View

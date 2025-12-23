@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { evaluationId } = req.query;
+    const { evaluationId, candidateId } = req.query;
 
     if (!evaluationId) {
       return res.status(400).json({
@@ -34,6 +34,37 @@ export default async function handler(req, res) {
         success: false,
         error: 'Invalid evaluationId format',
       });
+    }
+
+    // Validate that the evaluation belongs to the correct candidate (if candidateId provided)
+    if (candidateId) {
+      const candidateIdNum = parseInt(candidateId, 10);
+      if (!isNaN(candidateIdNum)) {
+        const evalCheck = await query(
+          'SELECT candidate_id FROM evaluations WHERE id = ?',
+          [evalId]
+        );
+        
+        if (evalCheck.success && evalCheck.data && evalCheck.data.length > 0) {
+          const evalCandidateId = evalCheck.data[0].candidate_id;
+          if (evalCandidateId != candidateIdNum) {
+            console.error('[resumes/get] Security: Evaluation does not belong to candidate', {
+              evaluationId: evalId,
+              expectedCandidateId: candidateIdNum,
+              actualCandidateId: evalCandidateId,
+            });
+            return res.status(403).json({
+              success: false,
+              error: 'This evaluation does not belong to the specified candidate.',
+            });
+          }
+        } else {
+          return res.status(404).json({
+            success: false,
+            error: 'Evaluation not found.',
+          });
+        }
+      }
     }
 
     console.log('[resumes/get] Fetching resume for evaluationId:', evalId);
