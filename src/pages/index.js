@@ -1309,6 +1309,7 @@ export default function Home() {
 
       const evaluation = {
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        candidateId: null, // Will be filled from DB save response
         candidateName,
         candidateEmail: sanitizedEmail,
         candidateWhatsApp: sanitizedPhone,
@@ -1422,34 +1423,39 @@ export default function Home() {
         
         if (saveData.success) {
           const dbEvaluationId = saveData.data?.evaluationId;
+          const dbCandidateId = saveData.data?.candidateId;
+
           if (dbEvaluationId) {
             evaluation.id = dbEvaluationId;
             evaluation.databaseId = dbEvaluationId;
-            
-            // Resume is now saved directly in the evaluations/save API
-            // But if it wasn't saved there (e.g., API doesn't support it yet), try separate save
-            if (!saveData.data?.resumeSaved && data?.metadata?.resumeFile) {
-              try {
-                const resumeData = data.metadata.resumeFile;
-                const { data: resumeSaveResult } = await fetchJSON('/api/resumes/save', {
-                  method: 'POST',
-                  body: JSON.stringify({
-                    evaluationId: dbEvaluationId,
-                    fileName: sanitizeFileName(resumeData.fileName),
-                    fileType: resumeData.fileType,
-                    fileSize: resumeData.fileSize,
-                    fileContent: resumeData.fileContent, // Already base64
-                  }),
-                }, { maxRetries: 1 });
-                
-                if (resumeSaveResult.success) {
-                  // Resume saved successfully
-                } else {
-                  logError(resumeSaveResult.error, 'Save Resume');
-                }
-              } catch (resumeError) {
-                logError(resumeError, 'Save Resume');
+          }
+          if (dbCandidateId) {
+            evaluation.candidateId = dbCandidateId;
+          }
+
+          // Resume is now saved directly in the evaluations/save API
+          // But if it wasn't saved there (e.g., API doesn't support it yet), try separate save
+          if (!saveData.data?.resumeSaved && data?.metadata?.resumeFile) {
+            try {
+              const resumeData = data.metadata.resumeFile;
+              const { data: resumeSaveResult } = await fetchJSON('/api/resumes/save', {
+                method: 'POST',
+                body: JSON.stringify({
+                  evaluationId: dbEvaluationId,
+                  fileName: sanitizeFileName(resumeData.fileName),
+                  fileType: resumeData.fileType,
+                  fileSize: resumeData.fileSize,
+                  fileContent: resumeData.fileContent, // Already base64
+                }),
+              }, { maxRetries: 1 });
+              
+              if (resumeSaveResult.success) {
+                // Resume saved successfully
+              } else {
+                logError(resumeSaveResult.error, 'Save Resume');
               }
+            } catch (resumeError) {
+              logError(resumeError, 'Save Resume');
             }
           }
         }
