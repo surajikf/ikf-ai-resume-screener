@@ -69,6 +69,21 @@ export default async function handler(req, res) {
       note: 'ALL verdicts (Recommended, Partially Suitable, Not Suitable) should be saved',
     });
 
+    // Guard: avoid creating empty placeholder candidates when parsing fails
+    const cleanedName = (candidateName || '').trim();
+    const isPlaceholderName = !cleanedName || cleanedName.toLowerCase() === 'candidate';
+    const hasContactInfo = !!(candidateEmail || candidateWhatsApp || linkedInUrl);
+    const hasWorkHistory = Array.isArray(workExperience) && workExperience.length > 0;
+    const hasLocation = !!(candidateLocation && candidateLocation.trim());
+
+    if (isPlaceholderName && !hasContactInfo && !hasWorkHistory && !hasLocation) {
+      console.warn('[evaluations/save] Rejecting placeholder candidate with no contact/info');
+      return res.status(400).json({
+        success: false,
+        error: 'Resume parsing failed: no usable candidate info found. Please upload a clearer resume or add contact details.',
+      });
+    }
+
     // Start transaction by getting connection
     const connection = await getConnection();
     await connection.beginTransaction();
@@ -139,7 +154,6 @@ export default async function handler(req, res) {
       }
 
       // Strategy 3: Match by LinkedIn URL (reliable)
-      const linkedInUrl = req.body.linkedInUrl || null;
       if (!candidateId && linkedInUrl) {
         const [linkedinResults] = await connection.execute(
           'SELECT id FROM candidates WHERE linkedin_url = ? LIMIT 1',
