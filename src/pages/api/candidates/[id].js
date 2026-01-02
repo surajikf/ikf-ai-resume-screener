@@ -153,6 +153,7 @@ export default async function handler(req, res) {
       `SELECT 
         el.id,
         el.evaluation_id,
+        e.candidate_id,
         el.to_email,
         el.subject,
         el.body,
@@ -168,12 +169,15 @@ export default async function handler(req, res) {
       [id]
     );
 
-    const emailLogs = emailLogsResult.success && emailLogsResult.data ? emailLogsResult.data : [];
+    const emailLogs = emailLogsResult.success && emailLogsResult.data
+      ? emailLogsResult.data.filter(log => String(log.candidate_id) === String(id))
+      : [];
 
     const whatsappLogsResult = await query(
       `SELECT 
         wl.id,
         wl.evaluation_id,
+        e.candidate_id,
         wl.to_whatsapp,
         wl.message,
         wl.status,
@@ -190,7 +194,9 @@ export default async function handler(req, res) {
       [id]
     );
 
-    const whatsappLogs = whatsappLogsResult.success && whatsappLogsResult.data ? whatsappLogsResult.data : [];
+    const whatsappLogs = whatsappLogsResult.success && whatsappLogsResult.data
+      ? whatsappLogsResult.data.filter(log => String(log.candidate_id) === String(id))
+      : [];
 
     // Get stage history (if table exists)
     let stageHistory = [];

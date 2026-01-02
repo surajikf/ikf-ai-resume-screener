@@ -6,9 +6,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // First, ensure tables exist
-    try {
-      await query(`
+    const isMySQL = process.env.DB_PROVIDER !== 'supabase';
+
+    // First, ensure tables exist (MySQL only)
+    if (isMySQL) {
+      try {
+        await query(`
         CREATE TABLE IF NOT EXISTS \`candidates\` (
           \`id\` INT AUTO_INCREMENT PRIMARY KEY,
           \`candidate_name\` VARCHAR(255) NOT NULL,
@@ -24,7 +27,7 @@ export default async function handler(req, res) {
           \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
-      await query(`
+        await query(`
         CREATE TABLE IF NOT EXISTS \`evaluations\` (
           \`id\` INT AUTO_INCREMENT PRIMARY KEY,
           \`candidate_id\` INT NOT NULL,
@@ -48,9 +51,10 @@ export default async function handler(req, res) {
           FOREIGN KEY (\`candidate_id\`) REFERENCES \`candidates\`(\`id\`) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
-    } catch (tableError) {
-      console.error('[evaluations/list] Failed to create tables:', tableError);
-      // Continue anyway - tables might already exist
+      } catch (tableError) {
+        console.error('[evaluations/list] Failed to create tables:', tableError);
+        // Continue anyway - tables might already exist
+      }
     }
 
     const { limit = 50, offset = 0, verdict, search } = req.query;

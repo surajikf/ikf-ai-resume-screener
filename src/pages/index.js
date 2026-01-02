@@ -126,6 +126,17 @@ export default function Home() {
   const [topCandidatesFilter, setTopCandidatesFilter] = useState('all'); // 'all', '5', '10', '15', '20', '25', '50'
   const isJDFromSavedRef = useRef(false); // Track if current JD is from a saved JD (should not be auto-saved)
 
+  // Clear potentially stale cached evaluations so navigation gets fresh IDs
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('ikfEvaluations');
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Function to load evaluations (reusable)
   const loadEvaluations = async (useStoredFirst = true) => {
     // Load from localStorage immediately (instant display)

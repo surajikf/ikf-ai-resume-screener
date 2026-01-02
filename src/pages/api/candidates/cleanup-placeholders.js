@@ -6,6 +6,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const isMySQL = process.env.DB_PROVIDER !== 'supabase';
     const { dryRun = true } = req.body || {};
 
     // Identify placeholder candidates: default/blank name + no contact/info
@@ -38,15 +39,29 @@ export default async function handler(req, res) {
       });
     }
 
-    // Delete in one statement; evaluations will cascade (FK ON DELETE CASCADE)
-    // Delete one-by-one to satisfy SQL parsers that don't support IN (...) expansion
     let deleted = 0;
-    for (const id of ids) {
-      const deleteResult = await query('DELETE FROM candidates WHERE id = ?', [id]);
-      if (!deleteResult.success) {
-        return res.status(500).json({ success: false, error: deleteResult.error || 'Failed to delete placeholder candidates' });
+
+    if (isMySQL) {
+      // Batched IN deletes for MySQL
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+        const batch = ids.slice(i, i + BATCH_SIZE);
+        const placeholders = batch.map(() => '?').join(',');
+        const deleteResult = await query(`DELETE FROM candidates WHERE id IN (${placeholders})`, batch);
+        if (!deleteResult.success) {
+          return res.status(500).json({ success: false, error: deleteResult.error || 'Failed to delete placeholder candidates' });
+        }
+        deleted += batch.length;
       }
-      deleted += 1;
+    } else {
+      // Supabase adapter: delete one-by-one to satisfy WHERE requirement
+      for (const id of ids) {
+        const deleteResult = await query('DELETE FROM candidates WHERE id = ?', [id]);
+        if (!deleteResult.success) {
+          return res.status(500).json({ success: false, error: deleteResult.error || 'Failed to delete placeholder candidates' });
+        }
+        deleted += 1;
+      }
     }
 
     return res.status(200).json({
